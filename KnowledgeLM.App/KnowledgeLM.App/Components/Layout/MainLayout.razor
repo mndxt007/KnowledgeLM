@@ -20,16 +20,7 @@
 
 
     <FluentStack Orientation="Orientation.Horizontal" Width="100%" Style="height : 100%">
-        <FluentNavMenu CollapsedChildNavigation="true" Collapsible="true" Width="250">
-                <FluentNavLink Icon="@(new Icons.Regular.Size24.Home())">Item 1</FluentNavLink>
-                <FluentNavLink Icon="@(new Icons.Regular.Size24.Cloud())">Item 2</FluentNavLink>
-                <FluentNavGroup Title="Item 3">
-                    <FluentNavLink Icon="@(new Icons.Regular.Size24.LeafOne())">Item 3.1</FluentNavLink>
-                    <FluentNavLink Icon="@(new Icons.Regular.Size24.LeafTwo())">Item 3.2</FluentNavLink>
-                </FluentNavGroup>
-                <FluentNavLink Icon="@(new Icons.Regular.Size24.CalendarAgenda())" Disabled="true">Item 4</FluentNavLink>
-            </FluentNavMenu>
-
+        <NavMenu/>
         <FluentBodyContent Style="height: 100%">
                 @Body
             </FluentBodyContent>

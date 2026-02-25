@@ -1,6 +1,12 @@
-﻿@page "/Home"
+﻿@page "/"
 
-<FluentCard Height="100%">
-  <h2>Hello World!</h2>
-  <FluentButton Appearance="@Appearance.Accent">Click Me</FluentButton>
-</FluentCard>
+
+<FluentMultiSplitter Orientation="Orientation.Vertical">
+            <FluentMultiSplitterPane Collapsible="true" Min="50%">
+                Main Content
+            </FluentMultiSplitterPane>
+            <FluentMultiSplitterPane Collapsible="true" Min="30%">
+                <GithubCLI/>
+            </FluentMultiSplitterPane>
+</FluentMultiSplitter>
+

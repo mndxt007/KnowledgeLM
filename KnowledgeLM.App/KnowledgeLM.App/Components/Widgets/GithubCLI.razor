@@ -1,25 +1,24 @@
-﻿@page "/"
+﻿@page "/Chat"
 
-<FluentStack Orientation="Orientation.Vertical" VerticalAlignment="VerticalAlignment.Center" HorizontalAlignment="HorizontalAlignment.Center" Style="height: 100vh;">
+<FluentStack Orientation="Orientation.Vertical" VerticalAlignment="VerticalAlignment.Center" HorizontalAlignment="HorizontalAlignment.Center" Style="height: 100%;">
     <FluentStack Orientation="Orientation.Horizontal" Width="50%">
         <FluentTextField @bind-Value="queryText"
                          Placeholder="Test Github CLI Functionality"
                          Style="flex: 1;" />
         <FluentButton Appearance="Appearance.Accent"
-                      OnClick="@(() => HandleQuery(queryText))">
+                      OnClick="@(() => HandleQuery(queryText))" Loading="agentWorking">
             Send
         </FluentButton>
     </FluentStack>
-     <FluentCard Width="50%" Style="height: 70vh;" >
-        @if(cardText.Count == 0)
+     <FluentCard Width="50%" Style="height: 70%;" >
+       @*  @if(cardText.Count == 0)
         {
             <p>Test the CoPilot Integration</p>
-        }
+        } *@
         @foreach(var line in cardText)
         {
-            <p>@line</p>
+            <FluentLabel Color="GetColor(line.EventType)">[@line.EventType] @line.Message</FluentLabel>
         }
-
-       
+ 
     </FluentCard>
 </FluentStack>
