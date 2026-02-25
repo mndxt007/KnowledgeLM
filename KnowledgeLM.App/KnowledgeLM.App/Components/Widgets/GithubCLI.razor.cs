@@ -1,12 +1,18 @@
-﻿
 using GitHub.Copilot.SDK;
+using KnowledgeLM.App.Helpers;
 using KnowledgeLM.App.Models;
+using KnowledgeLM.App.Services;
+using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.AI;
 using FluentColor = Microsoft.FluentUI.AspNetCore.Components.Color;
 
 namespace KnowledgeLM.App.Components.Widgets
 {
     partial class GithubCLI
     {
+        [Inject]
+        private NotesCRUDService CrudService { get; set; } = default!;
+
         private readonly CopilotClient ghcpClient;
         private CopilotSession? session;
         private List<CoPilotMessages> cardText = [];
@@ -22,15 +28,38 @@ namespace KnowledgeLM.App.Components.Widgets
             });
 
         }
+
+        private IList<AIFunction> GetAIFunctions()
+        {
+            return [
+                AIFunctionFactory.Create(
+                    CrudService.CreateCourseAsync,
+                    "create_course",
+                    "Create a new course with a name, description, and location"),
+                AIFunctionFactory.Create(
+                    CrudService.CreateSectionAsync,
+                    "create_section",
+                    "Create a new section within a course, requires courseId, name, description, and location"),
+                AIFunctionFactory.Create(
+                    CrudService.CreateResourceAsync,
+                    "create_resource",
+                    "Create a new resource within a section, requires sectionId, name, location, and resourceType (Image, Video, or Other)"),
+            ];
+        }
+
         protected override async Task OnAfterRenderAsync(bool firstRender)
         {
             session = await ghcpClient.CreateSessionAsync(new SessionConfig
             {
-                 //To do
-                  
+                Tools = GetAIFunctions(),
+                SystemMessage = new()
+                {
+                     Content = AgentPrompts.SystemPrompt,
+                      Mode = SystemMessageMode.Append
+                }
             });
 
-            session.On(async evt => 
+            session.On(async evt =>
             {
                 switch(evt)
                 {
@@ -54,13 +83,15 @@ namespace KnowledgeLM.App.Components.Widgets
             });
 
         }
+
         private async Task HandleQuery(string query)
         {
             if(session!=null)
             {
                 agentWorking = true;
                 await InvokeAsync(StateHasChanged);
-                await session.SendAndWaitAsync(new MessageOptions { Prompt = query });
+                //await session.SendAndWaitAsync(new MessageOptions { Prompt = query });
+                await session.SendAsync(new MessageOptions { Prompt = query });
                 agentWorking = false;
                 await InvokeAsync(StateHasChanged);
                 queryText = String.Empty;

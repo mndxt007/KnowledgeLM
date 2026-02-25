@@ -1,0 +1,70 @@
+@inject KnowledgeLM.App.Services.NotesCRUDService CrudService
+
+@if (loading)
+{
+    <FluentProgress />
+}
+else if (courses is null || courses.Count == 0)
+{
+    <FluentLabel Typo="Typography.Body">No courses found.</FluentLabel>
+}
+else
+{
+    <FluentTreeView>
+        @foreach (var course in courses)
+        {
+            <FluentTreeItem Text="@course.Name" Expanded="true">
+                @if (course.Sections.Count == 0)
+                {
+                    <FluentTreeItem Text="No sections" Disabled="true" />
+                }
+                else
+                {
+                    @foreach (var sec in course.Sections)
+                    {
+                        <FluentTreeItem Text="@sec.Name">
+                            @if (sec.Resources.Count == 0)
+                            {
+                                <FluentTreeItem Text="No resources" Disabled="true" />
+                            }
+                            else
+                            {
+                                @foreach (var resource in sec.Resources)
+                                {
+                                    <FluentTreeItem Text="@($"{resource.Name} ({resource.ResourceType})")"
+                                                    Icon="@GetResourceIcon(resource.ResourceType)" />
+                                }
+                            }
+                        </FluentTreeItem>
+                    }
+                }
+            </FluentTreeItem>
+        }
+    </FluentTreeView>
+}
+
+@code {
+    private List<KnowledgeLM.App.Models.Notes.DTOs.CourseDetailResponse>? courses;
+    private bool loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var allCourses = await CrudService.GetAllCoursesAsync();
+        courses = [];
+        foreach (var c in allCourses)
+        {
+            var detail = await CrudService.GetCourseByIdAsync(c.Id);
+            if (detail is not null)
+                courses.Add(detail);
+        }
+        loading = false;
+    }
+
+    private static Icon GetResourceIcon(KnowledgeLM.App.Models.Notes.ResourceType type) =>
+        type switch
+        {
+            KnowledgeLM.App.Models.Notes.ResourceType.Image => new Icons.Regular.Size20.Image(),
+            KnowledgeLM.App.Models.Notes.ResourceType.Video => new Icons.Regular.Size20.Video(),
+            _ => new Icons.Regular.Size20.Document(),
+        };
+}
