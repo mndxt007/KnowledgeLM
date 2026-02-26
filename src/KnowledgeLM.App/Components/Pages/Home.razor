@@ -1,0 +1,21 @@
+﻿@page "/"
+
+
+<FluentMultiSplitter Orientation="Orientation.Horizontal">
+    <FluentMultiSplitterPane>
+        <FluentMultiSplitter Orientation="Orientation.Vertical" Class="m-2">
+            <FluentMultiSplitterPane Collapsible="true" Style="overflow-y: auto;" Class="m-2">
+                <Notes />
+            </FluentMultiSplitterPane>
+            <FluentMultiSplitterPane Collapsible="true" Min="30%">
+                <GithubCLI />
+            </FluentMultiSplitterPane>
+        </FluentMultiSplitter>
+    </FluentMultiSplitterPane>
+    <FluentMultiSplitterPane Collapsible="true" Min="30%" Class="m-3">
+        <MarkdownView />
+    </FluentMultiSplitterPane>
+</FluentMultiSplitter>
+
+
+

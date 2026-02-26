@@ -31,8 +31,12 @@ else
                             {
                                 @foreach (var resource in sec.Resources)
                                 {
-                                    <FluentTreeItem Text="@($"{resource.Name} ({resource.ResourceType})")"
-                                                    Icon="@GetResourceIcon(resource.ResourceType)" />
+                                    @if (resource.ResourceType == ResourceType.Markdown | resource.ResourceType == ResourceType.Other)
+                                    {
+                                        <FluentTreeItem Text="@($"{resource.Name}")" 
+                                                        IconCollapsed="@GetResourceIcon(resource.ResourceType)" IconExpanded="@GetResourceIcon(resource.ResourceType)" />
+                                    }
+                                    
                                 }
                             }
                         </FluentTreeItem>

@@ -1,0 +1,23 @@
+﻿@page "/Chat"
+
+<FluentStack Orientation="Orientation.Vertical" VerticalAlignment="VerticalAlignment.Center" HorizontalAlignment="HorizontalAlignment.Center" Style="height: 100%;" >
+    <FluentCard Width="90%" Style="height: 80%; overflow-y: auto;" Id="AgentMessages">
+        @*  @if(cardText.Count == 0)
+        {
+            <p>Test the CoPilot Integration</p>
+        } *@
+        @foreach (var line in cardText)
+        {
+            <FluentLabel Color="GetColor(line.EventType)">[@line.EventType] @line.Message</FluentLabel>
+        }
+    </FluentCard>
+    <FluentStack Orientation="Orientation.Horizontal" Width="90%">
+        <FluentTextField @bind-Value="queryText"
+                         Placeholder="Send message to Copilot"
+                         Style="flex: 1;" />
+        <FluentButton Appearance="Appearance.Accent"
+                      OnClick="@(() => HandleQuery(queryText))" Loading="agentWorking">
+            Send
+        </FluentButton>
+    </FluentStack>
+</FluentStack>

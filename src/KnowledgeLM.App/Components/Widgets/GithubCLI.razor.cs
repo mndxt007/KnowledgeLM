@@ -4,12 +4,15 @@ using KnowledgeLM.App.Models;
 using KnowledgeLM.App.Services;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.AI;
+using Microsoft.JSInterop;
 using FluentColor = Microsoft.FluentUI.AspNetCore.Components.Color;
 
 namespace KnowledgeLM.App.Components.Widgets
 {
     partial class GithubCLI
     {
+        [Inject] 
+        IJSRuntime JS { get; set; } = default!;
         [Inject]
         private NotesCRUDService CrudService { get; set; } = default!;
 
@@ -49,38 +52,44 @@ namespace KnowledgeLM.App.Components.Widgets
 
         protected override async Task OnAfterRenderAsync(bool firstRender)
         {
-            session = await ghcpClient.CreateSessionAsync(new SessionConfig
+            await JS.InvokeVoidAsync("scrollToBottom", "AgentMessages");
+            if (firstRender)
             {
-                Tools = GetAIFunctions(),
-                SystemMessage = new()
+                session = await ghcpClient.CreateSessionAsync(new SessionConfig
                 {
-                     Content = AgentPrompts.SystemPrompt,
-                      Mode = SystemMessageMode.Append
-                }
-            });
+                    Tools = GetAIFunctions(),
+                    SystemMessage = new()
+                    {
+                        Content = AgentPrompts.SystemPrompt,
+                        Mode = SystemMessageMode.Append
+                    }
+                });
+                session.On(async evt =>
+                {
+                    switch (evt)
+                    {
+                        case AssistantMessageEvent assistantMessageEvent:
+                            string message = String.Concat(assistantMessageEvent.Data.ReasoningText, assistantMessageEvent.Data.Content);
+                            cardText.Add(new()
+                            {
+                                EventType = evt.Type,
+                                Message = message
+                            });
+                            await InvokeAsync(StateHasChanged);
+                            break;
+                        case UserMessageEvent userMessageEvent:
+                            cardText.Add(new()
+                            {
+                                EventType = evt.Type,
+                                Message = userMessageEvent.Data.Content
+                            });
+                            await InvokeAsync(StateHasChanged);
+                            break;
+                    }
+                });
+            }
 
-            session.On(async evt =>
-            {
-                switch(evt)
-                {
-                    case AssistantMessageEvent assistantMessageEvent:
-                        cardText.Add(new()
-                        {
-                            EventType = evt.Type,
-                            Message = assistantMessageEvent.Data.Content
-                        });
-                        await InvokeAsync(StateHasChanged);
-                        break;
-                    case UserMessageEvent userMessageEvent:
-                        cardText.Add(new()
-                        {
-                            EventType = evt.Type,
-                            Message = userMessageEvent.Data.Content
-                        });
-                        await InvokeAsync(StateHasChanged);
-                        break;
-                }
-            });
+            
 
         }
 

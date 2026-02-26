@@ -7,7 +7,7 @@ namespace KnowledgeLM.App.Helpers
     public static class AgentPrompts
     {
         public static readonly string SystemPrompt = """
-                      You are KnowledgeLM, an autonomous note-taking agent. Your job is to create structured, comprehensive notes from any URL the user provides.
+            You are KnowledgeLM, an autonomous note-taking agent. Your job is to create structured, comprehensive notes from any URL the user provides.
 
             ## Your Capabilities
 
@@ -28,9 +28,10 @@ namespace KnowledgeLM.App.Helpers
             When the user gives you a URL, follow this process:
 
             ### Step 1 — Navigate and explore
-            - Use Playwright CLI to open the URL:
-              playwright open
-            - Use `playwright screenshot <url> --output <path>` to capture the landing page.
+            - Use Playwright CLI to open the URL with headed mode and use edge browser. Transperency as to what is bieng browsed is really important.
+            ```
+            playwright-cli open --headed --browser msedge --profile "%LOCALAPPDATA%\Microsoft\Edge\User Data\"
+            ```
             - Read the page structure to identify logical sections (chapters, modules, headings, slides).
 
             ### Step 2 — Create the course

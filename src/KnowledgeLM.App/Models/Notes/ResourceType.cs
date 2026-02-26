@@ -4,5 +4,6 @@ public enum ResourceType
 {
     Image,
     Video,
-    Other
+    Other,
+    Markdown
 }
