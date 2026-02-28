@@ -16,7 +16,8 @@
             {
                 Title = "KnowledgeLM",
                 //Icon = "appicon.png",
-                BackgroundColor = Colors.Transparent,
+                BackgroundColor = Color.FromArgb("#6264A7"),
+                ForegroundColor = Colors.White,
             };
         }
     }

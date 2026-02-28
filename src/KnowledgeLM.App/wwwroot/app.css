@@ -101,3 +101,123 @@ h1:focus {
         padding-left: env(safe-area-inset-left);
     }
 }
+
+/* Custom CSS to make EasyMDE play nice with Fluent UI colors */
+
+.EasyMDEContainer .CodeMirror {
+    color: var(--neutral-foreground-rest);
+    border-color: var(--neutral-stroke-rest);
+    background-color: var(--neutral-layer-1);
+}
+
+.EasyMDEContainer .cm-s-easymde .CodeMirror-cursor {
+    border-color: var(--neutral-foreground-rest);
+}
+
+.CodeMirror-cursor {
+    border-left: 1px solid var(--neutral-foreground-rest);
+    border-right: none;
+    width: 0;
+}
+
+.EasyMDEContainer .editor-toolbar > * {
+    border-color: var(--neutral-layer-1);
+}
+
+.editor-toolbar {
+    border-top: 1px solid var(--neutral-stroke-rest);
+    border-left: 1px solid var(--neutral-stroke-rest);
+    border-right: 1px solid var(--neutral-stroke-rest);
+}
+
+.editor-toolbar i.separator {
+    border-left: 1px solid var(--neutral-stroke-rest);
+    border-right: 1px solid var(--neutral-stroke-rest);
+}
+
+.EasyMDEContainer .editor-toolbar > .active,
+.editor-toolbar > button:hover,
+.editor-preview pre,
+.cm-s-easymde .cm-comment {
+    background-color: var(--neutral-layer-1);
+}
+
+.EasyMDEContainer .CodeMirror-fullscreen {
+    background: var(--neutral-layer-1);
+}
+
+.editor-toolbar.fullscreen {
+    background: var(--neutral-layer-1);
+}
+
+.editor-preview {
+    background: var(--neutral-layer-1);
+}
+
+.editor-preview-side {
+    border-color: var(--neutral-stroke-rest);
+}
+
+.CodeMirror-selected {
+    background: var(--neutral-fill-secondary-rest);
+}
+
+.CodeMirror-focused .CodeMirror-selected {
+    background: var(--neutral-fill-secondary-rest);
+}
+
+.CodeMirror-line::selection,
+.CodeMirror-line > span::selection,
+.CodeMirror-line > span > span::selection {
+    background: var(--neutral-fill-secondary-rest);
+}
+
+.CodeMirror-line::-moz-selection,
+.CodeMirror-line > span::-moz-selection,
+.CodeMirror-line > span > span::-moz-selection {
+    background: var(--neutral-fill-secondary-rest);
+}
+
+.EasyMDEContainer .CodeMirror-focused .CodeMirror-selected {
+    background: var(--neutral-fill-secondary-rest);
+}
+
+.editor-toolbar button {
+    color: var(--neutral-foreground-rest) !important;
+    transition: background-color 0.1s ease, border-color 0.1s ease;
+}
+
+.editor-toolbar button:hover {
+    background-color: var(--neutral-fill-secondary-rest);
+    border-color: var(--neutral-stroke-rest);
+}
+
+.editor-toolbar button.active {
+    background-color: var(--neutral-fill-secondary-rest);
+    border-color: var(--neutral-stroke-rest);
+}
+
+/* ── Fluent UI Icon Colors — Primary accent ──────────────────────── */
+.editor-toolbar button i {
+    color: var(--accent-base-color, #0078d4);
+    transition: color 0.1s ease;
+}
+
+/* Hover — brighten icon slightly */
+.editor-toolbar button:hover i {
+    filter: brightness(1.15);
+}
+
+/* Active state — keep primary */
+.editor-toolbar button.active i {
+    color: var(--accent-base-color, #0078d4) !important;
+}
+
+.editor-toolbar.disabled-for-preview button:not(.no-disable) {
+    color: var(--neutral-foreground-hint) !important;
+}
+
+.editor-toolbar.disabled-for-preview button:not(.no-disable) i {
+    color: var(--neutral-foreground-hint) !important;
+    filter: none;
+}
