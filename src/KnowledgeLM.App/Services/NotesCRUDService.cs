@@ -12,10 +12,18 @@ namespace KnowledgeLM.App.Services;
 public class NotesCRUDService
 {
     private readonly IDbContextFactory<NotesContext> _contextFactory;
+    private readonly StateService _stateService;
 
-    public NotesCRUDService(IDbContextFactory<NotesContext> contextFactory)
+    public NotesCRUDService(IDbContextFactory<NotesContext> contextFactory, StateService stateService)
     {
         _contextFactory = contextFactory;
+        _stateService = stateService;
+    }
+
+    private async Task SaveAndNotifyAsync(NotesContext context)
+    {
+        await context.SaveChangesAsync();
+        _stateService.RequestRefresh();
     }
 
     // ─── Course Operations ───────────────────────────────────────
@@ -92,7 +100,7 @@ public class NotesCRUDService
             Location = request.Location
         };
         context.Courses.Add(course);
-        await context.SaveChangesAsync();
+        await SaveAndNotifyAsync(context);
 
         return new CourseResponse
         {
@@ -116,7 +124,7 @@ public class NotesCRUDService
         existing.Description = request.Description;
         existing.Location = request.Location;
 
-        await context.SaveChangesAsync();
+        await SaveAndNotifyAsync(context);
         return true;
     }
 
@@ -127,7 +135,7 @@ public class NotesCRUDService
         if (course is null) return false;
 
         context.Courses.Remove(course);
-        await context.SaveChangesAsync();
+        await SaveAndNotifyAsync(context);
         return true;
     }
 
@@ -198,7 +206,7 @@ public class NotesCRUDService
             Location = request.Location
         };
         context.Sections.Add(section);
-        await context.SaveChangesAsync();
+        await SaveAndNotifyAsync(context);
 
         return new SectionResponse
         {
@@ -223,7 +231,7 @@ public class NotesCRUDService
         existing.Description = request.Description;
         existing.Location = request.Location;
 
-        await context.SaveChangesAsync();
+        await SaveAndNotifyAsync(context);
         return true;
     }
 
@@ -234,7 +242,7 @@ public class NotesCRUDService
         if (section is null) return false;
 
         context.Sections.Remove(section);
-        await context.SaveChangesAsync();
+        await SaveAndNotifyAsync(context);
         return true;
     }
 
@@ -292,7 +300,7 @@ public class NotesCRUDService
             ResourceType = request.ResourceType
         };
         context.Resources.Add(resource);
-        await context.SaveChangesAsync();
+        await SaveAndNotifyAsync(context);
 
         return new ResourceResponse
         {
@@ -316,7 +324,7 @@ public class NotesCRUDService
         existing.Location = request.Location;
         existing.ResourceType = request.ResourceType;
 
-        await context.SaveChangesAsync();
+        await SaveAndNotifyAsync(context);
         return true;
     }
 
@@ -327,7 +335,7 @@ public class NotesCRUDService
         if (resource is null) return false;
 
         context.Resources.Remove(resource);
-        await context.SaveChangesAsync();
+        await SaveAndNotifyAsync(context);
         return true;
     }
 }

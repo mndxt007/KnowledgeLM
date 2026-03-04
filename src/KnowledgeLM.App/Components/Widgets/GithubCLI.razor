@@ -8,7 +8,7 @@
         } *@
         @foreach (var line in cardText)
         {
-            <FluentLabel Color="GetColor(line.EventType)">[@line.EventType] @line.Message</FluentLabel>
+            <FluentLabel Color="GetColor(line.EventType)">@GetEmoji(line.EventType) [@line.EventType] @line.Message</FluentLabel>
         }
     </FluentCard>
     <FluentStack Orientation="Orientation.Horizontal" Width="90%">

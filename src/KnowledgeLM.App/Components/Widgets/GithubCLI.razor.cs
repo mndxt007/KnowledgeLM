@@ -1,20 +1,23 @@
-using GitHub.Copilot.SDK;
+﻿using GitHub.Copilot.SDK;
 using KnowledgeLM.App.Helpers;
 using KnowledgeLM.App.Models;
 using KnowledgeLM.App.Services;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.AI;
 using Microsoft.JSInterop;
+using System.Net.Sockets;
 using FluentColor = Microsoft.FluentUI.AspNetCore.Components.Color;
 
 namespace KnowledgeLM.App.Components.Widgets
 {
-    partial class GithubCLI
+    partial class GithubCLI : IDisposable
     {
         [Inject] 
         IJSRuntime JS { get; set; } = default!;
         [Inject]
         private NotesCRUDService CrudService { get; set; } = default!;
+        [Inject]
+        private StateService StateService { get; set; } = default!;
 
         private readonly CopilotClient ghcpClient;
         private CopilotSession? session;
@@ -29,7 +32,21 @@ namespace KnowledgeLM.App.Components.Widgets
                  UseLoggedInUser = true,
                  CliPath = "C:\\Users\\manojdixit\\AppData\\Local\\Microsoft\\WinGet\\Links\\copilot.exe"
             });
+        }
 
+        protected override void OnInitialized()
+        {
+            StateService.OnRefreshRequested += OnRefreshRequested;
+        }
+
+        private async void OnRefreshRequested()
+        {
+            await InvokeAsync(StateHasChanged);
+        }
+
+        public void Dispose()
+        {
+            StateService.OnRefreshRequested -= OnRefreshRequested;
         }
 
         private IList<AIFunction> GetAIFunctions()
@@ -75,6 +92,7 @@ namespace KnowledgeLM.App.Components.Widgets
                                 EventType = evt.Type,
                                 Message = message
                             });
+                            //StateService.RequestRefresh();
                             await InvokeAsync(StateHasChanged);
                             break;
                         case UserMessageEvent userMessageEvent:
@@ -84,6 +102,13 @@ namespace KnowledgeLM.App.Components.Widgets
                                 Message = userMessageEvent.Data.Content
                             });
                             await InvokeAsync(StateHasChanged);
+                            break;
+                         case ToolExecutionStartEvent toolExecutionCompleteEvent:
+                            cardText.Add(new()
+                            {
+                                EventType = evt.Type,
+                                Message = toolExecutionCompleteEvent.Data.ToolName
+                            });
                             break;
                     }
                 });
@@ -115,7 +140,15 @@ namespace KnowledgeLM.App.Components.Widgets
             "assistant.message" => FluentColor.Success,
             _ => FluentColor.Neutral
         };
-        
+        private String GetEmoji(string eventType) =>
+       eventType switch
+       {
+           "user.message" => "👤",
+           "assistant.message" => "🤖",
+           "tool.execution_start" => "🛠️",
+           _ => "❓"
+       };
+
     }
 
     

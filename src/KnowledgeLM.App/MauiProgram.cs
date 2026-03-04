@@ -28,6 +28,7 @@ namespace KnowledgeLM.App
 
             // Application services
             builder.Services.AddScoped<NotesCRUDService>();
+            builder.Services.AddScoped<StateService>();
 
 #if DEBUG
             builder.Services.AddBlazorWebViewDeveloperTools();

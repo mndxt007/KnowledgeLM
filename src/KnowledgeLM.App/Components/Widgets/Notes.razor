@@ -51,28 +51,3 @@ else
     </FluentTreeView>
 }
 
-@code {
-    private List<KnowledgeLM.App.Models.Notes.DTOs.CourseDetailResponse>? courses;
-    private bool loading = true;
-
-    protected override async Task OnInitializedAsync()
-    {
-        var allCourses = await CrudService.GetAllCoursesAsync();
-        courses = [];
-        foreach (var c in allCourses)
-        {
-            var detail = await CrudService.GetCourseByIdAsync(c.Id);
-            if (detail is not null)
-                courses.Add(detail);
-        }
-        loading = false;
-    }
-
-    private static Icon GetResourceIcon(KnowledgeLM.App.Models.Notes.ResourceType type) =>
-        type switch
-        {
-            KnowledgeLM.App.Models.Notes.ResourceType.Image => new Icons.Regular.Size20.Image(),
-            KnowledgeLM.App.Models.Notes.ResourceType.Video => new Icons.Regular.Size20.Video(),
-            _ => new Icons.Regular.Size20.Document(),
-        };
-}
