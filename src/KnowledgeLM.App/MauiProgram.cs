@@ -1,8 +1,11 @@
-﻿using KnowledgeLM.App.Data;
+﻿using FluentUI.Blazor.Monaco.EditorPack.Extensions;
+using KnowledgeLM.App.Data;
 using KnowledgeLM.App.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.FluentUI.AspNetCore.Components;
+using Microsoft.SemanticKernel;
+using Microsoft.Extensions.Hosting;
 
 namespace KnowledgeLM.App
 {
@@ -19,7 +22,12 @@ namespace KnowledgeLM.App
                 });
 
             builder.Services.AddMauiBlazorWebView();
+            builder.Services.AddMonacoEditorPack();
             builder.Services.AddFluentUIComponents();
+            builder.AddServiceDefaults();
+
+            var kernel = builder.Services.AddKernel();
+            kernel.Plugins.AddFromType<NotesCRUDService>("NotesManagement");
 
             // EF Core - SQLite with IDbContextFactory for Blazor concurrency safety
             var dbPath = Path.Combine(FileSystem.AppDataDirectory, "knowledgelm.db");

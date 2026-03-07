@@ -1,5 +1,6 @@
 using KnowledgeLM.App.Models.Notes;
 using Microsoft.EntityFrameworkCore;
+using Resource = KnowledgeLM.App.Models.Notes.Resource;
 
 namespace KnowledgeLM.App.Data;
 

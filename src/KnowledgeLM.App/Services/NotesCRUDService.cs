@@ -1,7 +1,10 @@
+using System.ComponentModel;
 using KnowledgeLM.App.Data;
 using KnowledgeLM.App.Models.Notes;
 using KnowledgeLM.App.Models.Notes.DTOs;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.SemanticKernel;
+using Resource = KnowledgeLM.App.Models.Notes.Resource;
 
 namespace KnowledgeLM.App.Services;
 
@@ -9,6 +12,7 @@ namespace KnowledgeLM.App.Services;
 /// CRUD service for Notes entities using IDbContextFactory.
 /// Each operation creates a short-lived DbContext to avoid concurrency issues in Blazor.
 /// </summary>
+
 public class NotesCRUDService
 {
     private readonly IDbContextFactory<NotesContext> _contextFactory;
@@ -28,6 +32,8 @@ public class NotesCRUDService
 
     // ─── Course Operations ───────────────────────────────────────
 
+    [KernelFunction("get_all_courses")]
+    [Description("Gets all courses ordered by last modified date, including section counts.")]
     public async Task<List<CourseResponse>> GetAllCoursesAsync()
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
@@ -48,6 +54,8 @@ public class NotesCRUDService
             .ToListAsync();
     }
 
+    [KernelFunction("get_course_by_id")]
+    [Description("Gets a course by its ID, including its sections and their resources.")]
     public async Task<CourseDetailResponse?> GetCourseByIdAsync(int id)
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
@@ -90,6 +98,8 @@ public class NotesCRUDService
         };
     }
 
+    [KernelFunction("create_course")]
+    [Description("Creates a new course with the specified name, description, and location.")]
     public async Task<CourseResponse> CreateCourseAsync(CreateCourseRequest request)
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
@@ -114,6 +124,8 @@ public class NotesCRUDService
         };
     }
 
+    [KernelFunction("update_course")]
+    [Description("Updates an existing course's name, description, and location.")]
     public async Task<bool> UpdateCourseAsync(UpdateCourseRequest request)
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
@@ -141,6 +153,8 @@ public class NotesCRUDService
 
     // ─── Section Operations ──────────────────────────────────────
 
+    [KernelFunction("get_sections_by_course_id")]
+    [Description("Gets all sections for a given course ID, including resource counts.")]
     public async Task<List<SectionResponse>> GetSectionsByCourseIdAsync(int courseId)
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
@@ -163,6 +177,8 @@ public class NotesCRUDService
             .ToListAsync();
     }
 
+    [KernelFunction("get_section_by_id")]
+    [Description("Gets a section by its ID, including its resources.")]
     public async Task<SectionDetailResponse?> GetSectionByIdAsync(int id)
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
@@ -195,6 +211,8 @@ public class NotesCRUDService
         };
     }
 
+    [KernelFunction("create_section")]
+    [Description("Creates a new section with the specified course ID, name, description, and location.")]
     public async Task<SectionResponse> CreateSectionAsync(CreateSectionRequest request)
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
@@ -221,6 +239,8 @@ public class NotesCRUDService
         };
     }
 
+    [KernelFunction("update_section")]
+    [Description("Updates an existing section's name, description, and location.")]
     public async Task<bool> UpdateSectionAsync(UpdateSectionRequest request)
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
@@ -248,6 +268,8 @@ public class NotesCRUDService
 
     // ─── Resource Operations ─────────────────────────────────────
 
+    [KernelFunction("get_resources_by_section_id")]
+    [Description("Gets all resources for a given section ID.")]
     public async Task<List<ResourceResponse>> GetResourcesBySectionIdAsync(int sectionId)
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
@@ -268,6 +290,8 @@ public class NotesCRUDService
             .ToListAsync();
     }
 
+    [KernelFunction("get_resource_by_id")]
+    [Description("Gets a resource by its ID.")]
     public async Task<ResourceResponse?> GetResourceByIdAsync(int id)
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
@@ -289,6 +313,8 @@ public class NotesCRUDService
         };
     }
 
+    [KernelFunction("create_resource")]
+    [Description("Creates a new resource with the specified section ID, name, location, and resource type.")]
     public async Task<ResourceResponse> CreateResourceAsync(CreateResourceRequest request)
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
@@ -314,6 +340,8 @@ public class NotesCRUDService
         };
     }
 
+    [KernelFunction("update_resource")]
+    [Description("Updates an existing resource's name, location, and resource type.")]
     public async Task<bool> UpdateResourceAsync(UpdateResourceRequest request)
     {
         await using var context = await _contextFactory.CreateDbContextAsync();

@@ -85,5 +85,6 @@ namespace KnowledgeLM.App.Helpers
             9. **Write markdown notes in your own words.** Summarize, don't just copy-paste raw HTML. Use headings, bullets, bold for key terms, and code fences where appropriate.
             10. **After completing all sections**, give the user a summary: how many sections created, how many screenshots taken, and the path to the overview file.
             """;
+        public static readonly string NotesFolder = "Q:\\Dev\\Notes";
     }
 }

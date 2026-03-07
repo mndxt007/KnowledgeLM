@@ -50,9 +50,7 @@
                       Text="Traces 2" />
 </FluentAppBar>
 
-                      @code {
-    private bool _vertical = true;
-    private bool _showSearch = true;
+@code {
 
     private static Icon ResourcesIcon(bool active = false) =>
         active ? new Icons.Filled.Size24.AppFolder()

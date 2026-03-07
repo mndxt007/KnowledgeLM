@@ -4,7 +4,10 @@ using KnowledgeLM.App.Models;
 using KnowledgeLM.App.Services;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Logging;
 using Microsoft.JSInterop;
+using Microsoft.SemanticKernel;
+using System.Collections.Concurrent;
 using System.Net.Sockets;
 using FluentColor = Microsoft.FluentUI.AspNetCore.Components.Color;
 
@@ -18,24 +21,27 @@ namespace KnowledgeLM.App.Components.Widgets
         private NotesCRUDService CrudService { get; set; } = default!;
         [Inject]
         private StateService StateService { get; set; } = default!;
+        [Inject]
+        private Kernel Kernel { get; set; } = default!;
 
-        private readonly CopilotClient ghcpClient;
+        private CopilotClient? ghcpClient;
         private CopilotSession? session;
-        private List<CoPilotMessages> cardText = [];
+        private ConcurrentBag<CoPilotMessages> cardText = [];
         private string queryText = string.Empty;
         private bool agentWorking = false;
-
-        public GithubCLI()
-        {
-            ghcpClient = new CopilotClient(new()
-            {
-                 UseLoggedInUser = true,
-                 CliPath = "C:\\Users\\manojdixit\\AppData\\Local\\Microsoft\\WinGet\\Links\\copilot.exe"
-            });
-        }
+        [Inject]
+        private ILogger<CopilotClient> CopilotLogger { get; set; } = default!;
 
         protected override void OnInitialized()
         {
+            ghcpClient = new CopilotClient(new()
+            {
+                UseLoggedInUser = true,
+                CliPath = "C:\\Users\\manojdixit\\AppData\\Local\\Microsoft\\WinGet\\Links\\copilot.exe",
+                //Logger = CopilotLogger,
+                //LogLevel = "debug"
+            });
+
             StateService.OnRefreshRequested += OnRefreshRequested;
         }
 
@@ -51,26 +57,25 @@ namespace KnowledgeLM.App.Components.Widgets
 
         private IList<AIFunction> GetAIFunctions()
         {
-            return [
-                AIFunctionFactory.Create(
-                    CrudService.CreateCourseAsync,
-                    "create_course",
-                    "Create a new course with a name, description, and location"),
-                AIFunctionFactory.Create(
-                    CrudService.CreateSectionAsync,
-                    "create_section",
-                    "Create a new section within a course, requires courseId, name, description, and location"),
-                AIFunctionFactory.Create(
-                    CrudService.CreateResourceAsync,
-                    "create_resource",
-                    "Create a new resource within a section, requires sectionId, name, location, and resourceType (Image, Video, or Other)"),
-            ];
+            //convert from Kernel to AIFunction
+            List<AIFunction> aiFunctions = new List<AIFunction>();
+
+            foreach (var plugin in Kernel.Plugins)
+            {
+                foreach (var function in plugin)
+                {
+                    aiFunctions.Add(function);
+                }
+
+            }
+
+            return aiFunctions;
         }
 
         protected override async Task OnAfterRenderAsync(bool firstRender)
         {
-            await JS.InvokeVoidAsync("scrollToBottom", "AgentMessages");
-            if (firstRender)
+            //await JS.InvokeVoidAsync("scrollToBottom", "AgentMessages");
+            if (firstRender && ghcpClient is not null)
             {
                 session = await ghcpClient.CreateSessionAsync(new SessionConfig
                 {
@@ -87,27 +92,36 @@ namespace KnowledgeLM.App.Components.Widgets
                     {
                         case AssistantMessageEvent assistantMessageEvent:
                             string message = String.Concat(assistantMessageEvent.Data.ReasoningText, assistantMessageEvent.Data.Content);
-                            cardText.Add(new()
+                            await InvokeAsync(() =>
                             {
-                                EventType = evt.Type,
-                                Message = message
+                                cardText.Add(new()
+                                {
+                                    EventType = evt.Type,
+                                    Message = message
+                                });
+                                StateHasChanged();
                             });
-                            //StateService.RequestRefresh();
-                            await InvokeAsync(StateHasChanged);
                             break;
                         case UserMessageEvent userMessageEvent:
-                            cardText.Add(new()
+                            await InvokeAsync(() =>
                             {
-                                EventType = evt.Type,
-                                Message = userMessageEvent.Data.Content
+                                cardText.Add(new()
+                                {
+                                    EventType = evt.Type,
+                                    Message = userMessageEvent.Data.Content
+                                });
+                                StateHasChanged();
                             });
-                            await InvokeAsync(StateHasChanged);
                             break;
                          case ToolExecutionStartEvent toolExecutionCompleteEvent:
-                            cardText.Add(new()
+                            await InvokeAsync(() =>
                             {
-                                EventType = evt.Type,
-                                Message = toolExecutionCompleteEvent.Data.ToolName
+                                cardText.Add(new()
+                                {
+                                    EventType = evt.Type,
+                                    Message = toolExecutionCompleteEvent.Data.ToolName
+                                });
+                                StateHasChanged();
                             });
                             break;
                     }

@@ -1,3 +1,5 @@
 <Solution>
   <Project Path="KnowledgeLM.App/KnowledgeLM.App.csproj" />
+  <Project Path="KnowledgeLM.AppHost/KnowledgeLM.AppHost.csproj" />
+  <Project Path="KnowledgeLM.MauiServiceDefaults/KnowledgeLM.MauiServiceDefaults.csproj" />
 </Solution>

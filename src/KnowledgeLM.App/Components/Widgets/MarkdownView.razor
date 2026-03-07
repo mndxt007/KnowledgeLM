@@ -1,26 +1,29 @@
-﻿
- <MarkdownEditor Value="@markdownValue"
-                    ValueChanged="@OnMarkdownValueChanged"
-                    ValueHTMLChanged="@OnMarkdownValueHTMLChanged" />
+﻿@using FluentUI.Blazor.Monaco.EditorPack.Markdown
+
+<MonacoMarkdownEditor Markdown="@content"
+                      MarkdownChanged="@OnChanged"
+                      MarkdownOptions="@options"    />
 
 @code {
-    string markdownValue = "#Markdown Editor\nThis is a test";
-    string markdownHtml;
+    private string content = "# Hello World";
 
-    protected override void OnInitialized()
+    private readonly MarkdownOptions options = new()
     {
-        //markdownHtml = Markdig.Markdown.ToHtml(markdownValue ?? string.Empty);
-        base.OnInitialized();
-    }
+        EnableFrontMatter = true,
+        EnableTables = true,
+        EnableTaskLists = true,
+        EnableGenericAttributes = true,
+        EnableAutoIdentifiers = true,
+        EnableAutoLinks = true,
+        EnableEmphasisExtras = true,
+        EnableListExtras = true,
+        EnableFencedCodeBlocks = true
 
-    Task OnMarkdownValueChanged(string value)
-    {
-        return Task.CompletedTask;
-    }
+    };
 
-    Task OnMarkdownValueHTMLChanged(string value)
+    private Task OnChanged(string newContent)
     {
-        markdownHtml = value;
+        content = newContent;
         return Task.CompletedTask;
     }
 }
