@@ -18,20 +18,16 @@
                 <FluentIcon Value="@(new Icons.Regular.Size16.Document())" Color="@Color.Neutral" Slot="start" />
             </FluentBreadcrumbItem>
         </FluentBreadcrumb>
-        <FluentGrid Justify="JustifyContent.SpaceBetween" Class="px-2 mb-1">
-            <FluentGridItem >
-                <FluentLabel Typo="Typography.Body" Color="@Color.Accent" Style="font-family: 'Cascadia Mono', Consolas, 'Courier New', monospace; font-size: var(--type-ramp-minus-1-font-size);">
-                    <FluentIcon Value="@(new Icons.Regular.Size16.Notebook())" Color="@Color.Accent" />
-                    @ResourceResponse?.Location
-                </FluentLabel>
-            </FluentGridItem>
-            <FluentGridItem>
-                <FluentLabel Typo="Typography.Body" Color="@Color.Accent" Style="font-family: 'Cascadia Mono', Consolas, 'Courier New', monospace; font-size: var(--type-ramp-minus-1-font-size);">
-                    <FluentIcon Value="@(new Icons.Regular.Size16.Clock())" Color="@Color.Accent" />
-                    @ResourceResponse?.LastModified.ToLocalTime().ToString("g")
-                </FluentLabel>
-            </FluentGridItem>
-        </FluentGrid>
+        <div class="metadata-bar">
+            <span class="badge-pill-success">
+                <FluentIcon Value="@(new Icons.Regular.Size16.Notebook())" Color="@Color.Fill" />
+                @ResourceResponse?.Location
+            </span>
+            <span class="badge-pill-success">
+                <FluentIcon Value="@(new Icons.Regular.Size16.Clock())" Color="@Color.Fill" />
+                @ResourceResponse?.LastModified.ToLocalTime().ToString("g")
+            </span>
+        </div>
 
 
     }

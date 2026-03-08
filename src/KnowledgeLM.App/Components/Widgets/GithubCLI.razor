@@ -6,10 +6,12 @@
         {
             <p>Test the CoPilot Integration</p>
         } *@
-        @foreach (var line in cardText)
-        {
-            <FluentLabel Color="GetColor(line.EventType)" Class="metadata-label">@GetEmoji(line.EventType) [@line.EventType] @line.Message</FluentLabel>
-        }
+        <div class="agent-messages">
+            @foreach (var line in cardText)
+            {
+                <FluentLabel Color="GetColor(line.EventType)" Class="metadata-label">@GetEmoji(line.EventType) [@line.EventType] @line.Message</FluentLabel>
+            }
+        </div>
     </FluentCard>
     <FluentStack Orientation="Orientation.Horizontal" Width="90%">
         <FluentTextField @bind-Value="queryText"
