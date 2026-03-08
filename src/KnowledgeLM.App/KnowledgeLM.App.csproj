@@ -55,7 +55,6 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="FluentUI.Blazor.Monaco.EditorPack" Version="0.2.2-preview" />
         <PackageReference Include="GitHub.Copilot.SDK" Version="0.1.30" />
         <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.3" />
         <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.3" />
@@ -72,6 +71,7 @@
     </ItemGroup>
 
     <ItemGroup>
+      <ProjectReference Include="..\KnowledgeLM.MonacoEditor\KnowledgeLM.MonacoEditor.csproj" />
       <ProjectReference Include="..\KnowledgeLM.MauiServiceDefaults\KnowledgeLM.MauiServiceDefaults.csproj" />
     </ItemGroup>
 
