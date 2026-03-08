@@ -37,9 +37,9 @@ namespace KnowledgeLM.App.Components.Widgets
             ghcpClient = new CopilotClient(new()
             {
                 UseLoggedInUser = true,
-                CliPath = "C:\\Users\\manojdixit\\AppData\\Local\\Microsoft\\WinGet\\Links\\copilot.exe",
-                //Logger = CopilotLogger,
-                //LogLevel = "debug"
+                //CliPath = "C:\\Users\\manojdixit\\AppData\\Local\\Microsoft\\WinGet\\Links\\copilot.exe",
+                Logger = CopilotLogger,
+                LogLevel = "debug"
             });
 
             StateService.OnRefreshRequested += OnRefreshRequested;
@@ -80,10 +80,13 @@ namespace KnowledgeLM.App.Components.Widgets
                 session = await ghcpClient.CreateSessionAsync(new SessionConfig
                 {
                     Tools = GetAIFunctions(),
+                    OnPermissionRequest = PermissionHandler.ApproveAll,
+                     
                     SystemMessage = new()
                     {
                         Content = AgentPrompts.SystemPrompt,
-                        Mode = SystemMessageMode.Append
+                        Mode = SystemMessageMode.Append,
+                        
                     }
                 });
                 session.On(async evt =>

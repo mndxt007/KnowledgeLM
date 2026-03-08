@@ -1,29 +1,23 @@
 ﻿@using FluentUI.Blazor.Monaco.EditorPack.Markdown
 
-<MonacoMarkdownEditor Markdown="@content"
-                      MarkdownChanged="@OnChanged"
-                      MarkdownOptions="@options"    />
-
-@code {
-    private string content = "# Hello World";
-
-    private readonly MarkdownOptions options = new()
+<FluentCard>
+    @if(ResourceResponse is not null)
     {
-        EnableFrontMatter = true,
-        EnableTables = true,
-        EnableTaskLists = true,
-        EnableGenericAttributes = true,
-        EnableAutoIdentifiers = true,
-        EnableAutoLinks = true,
-        EnableEmphasisExtras = true,
-        EnableListExtras = true,
-        EnableFencedCodeBlocks = true
-
-    };
-
-    private Task OnChanged(string newContent)
-    {
-        content = newContent;
-        return Task.CompletedTask;
+        <FluentBreadcrumb>
+            <FluentBreadcrumbItem Href="#">
+                @CourseResponse?.Name
+                <FluentIcon Value="@(new Icons.Regular.Size16.BookOpen())" Color="@Color.Neutral" Slot="start" />
+            </FluentBreadcrumbItem>
+            <FluentBreadcrumbItem Href="#">
+                @SectionResponse?.Name
+                <FluentIcon Value="@(new Icons.Regular.Size16.Folder())" Color="@Color.Neutral" Slot="start" />
+            </FluentBreadcrumbItem>
+            <FluentBreadcrumbItem>
+                @ResourceResponse?.Name
+                <FluentIcon Value="@(new Icons.Regular.Size16.Document())" Color="@Color.Neutral" Slot="start" />
+            </FluentBreadcrumbItem>
+        </FluentBreadcrumb>
     }
-}
+    <MonacoMarkdownEditor Markdown="@MarkDownContent"
+                      MarkdownChanged="@OnChanged"  />
+</FluentCard>

@@ -1,467 +1,380 @@
 # KnowledgeLM — Architecture
 
-## System Architecture — Agent-First Design
-
-The core architecture is **agent-first**: the GitHub Copilot CLI SDK agent is the orchestrator. Playwright is exposed as a **skill/tool** that the agent invokes for browser automation, screenshots, and content extraction. Custom code is only written for capabilities Playwright cannot provide.
-
-### Agent ↔ Skills Model
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                   .NET MAUI Blazor Shell                    │
-│  ┌───────────┐  ┌──────────┐  ┌──────────────────────────┐  │
-│  │ Notebook  │  │ Markdown │  │  Chat / Quiz / Podcast   │  │
-│  │ Manager   │  │ Editor   │  │  UI                      │  │
-│  └─────┬─────┘  └────┬─────┘  └────────┬─────────────────┘  │
-│        └──────────────┴─────────────────┘                   │
-│                         │                                   │
-│  ┌──────────────────────┴──────────────────────────────┐    │
-│  │         Copilot SDK Agent (Orchestrator)             │    │
-│  │                                                      │    │
-│  │  The agent reasons, plans, and invokes skills/tools  │    │
-│  │  to accomplish learning tasks autonomously.          │    │
-│  │                                                      │    │
-│  │  ┌─────────────────────────────────────────────┐     │    │
-│  │  │              Registered Skills              │     │    │
-│  │  │                                             │     │    │
-│  │  │  ┌─────────────────────────────────────┐    │     │    │
-│  │  │  │  🌐 Playwright Skill (Browser)      │    │     │    │
-│  │  │  │  - NavigateToUrl(url)               │    │     │    │
-│  │  │  │  - TakeScreenshot()                 │    │     │    │
-│  │  │  │  - ExtractPageContent()             │    │     │    │
-│  │  │  │  - ClickElement(selector)           │    │     │    │
-│  │  │  │  - ScrollPage()                     │    │     │    │
-│  │  │  │  - GetVideoTranscript()             │    │     │    │
-│  │  │  │  - WaitForContent(selector)         │    │     │    │
-│  │  │  │  - AuthenticateWithSSO()            │    │     │    │
-│  │  │  └─────────────────────────────────────┘    │     │    │
-│  │  │                                             │     │    │
-│  │  │  ┌─────────────────────────────────────┐    │     │    │
-│  │  │  │  📝 Note Management Skill           │    │     │    │
-│  │  │  │  - CreateNote(notebook, title, md)  │    │     │    │
-│  │  │  │  - AppendToNote(noteId, content)    │    │     │    │
-│  │  │  │  - ReadNote(noteId)                 │    │     │    │
-│  │  │  │  - SaveScreenshot(bytes, name)      │    │     │    │
-│  │  │  └─────────────────────────────────────┘    │     │    │
-│  │  │                                             │     │    │
-│  │  │  ┌─────────────────────────────────────┐    │     │    │
-│  │  │  │  📄 File Processing Skill (Custom)  │    │     │    │
-│  │  │  │  - ExtractPdfText(filePath)         │    │     │    │
-│  │  │  │  - ParseYouTubeTranscript(url)      │    │     │    │
-│  │  │  │  - ReadTextFile(filePath)           │    │     │    │
-│  │  │  └─────────────────────────────────────┘    │     │    │
-│  │  │                                             │     │    │
-│  │  │  ┌─────────────────────────────────────┐    │     │    │
-│  │  │  │  🔍 Screenshot Analysis Skill       │    │     │    │
-│  │  │  │  - AnalyzeScreenshot(imagePath)     │    │     │    │
-│  │  │  │  - DetectSlideChange(img1, img2)    │    │     │    │
-│  │  │  │  - ExtractTextFromImage(imagePath)  │    │     │    │
-│  │  │  └─────────────────────────────────────┘    │     │    │
-│  │  │                                             │     │    │
-│  │  │  ┌─────────────────────────────────────┐    │     │    │
-│  │  │  │  💬 Learning Interaction Skill      │    │     │    │
-│  │  │  │  - ChatWithNotes(question, nbId)    │    │     │    │
-│  │  │  │  - GenerateQuiz(nbId, options)      │    │     │    │
-│  │  │  │  - GeneratePodcast(nbId)            │    │     │    │
-│  │  │  └─────────────────────────────────────┘    │     │    │
-│  │  └─────────────────────────────────────────────┘     │    │
-│  └──────────────────────────────────────────────────────┘    │
-│                         │                                    │
-│  ┌──────────────────────┴──────────────────────────────┐     │
-│  │                  Storage Layer                       │     │
-│  │  SQLite (metadata) │ File System (.md + media)       │     │
-│  └──────────────────────────────────────────────────────┘     │
-└──────────────────────────────────────────────────────────────┘
-```
-
-### How It Works
-
-1. **User adds a source** (URL, file) to a notebook
-2. **Copilot SDK agent** reasons about the source type and plans the extraction
-3. **Agent invokes Playwright skill** to navigate, authenticate, screenshot, and extract content
-4. **Agent uses its own intelligence** to structure extracted content into Markdown notes
-5. **Agent invokes Note Management skill** to save notes and screenshots
-6. **For capabilities Playwright can't handle** (PDF parsing, YouTube API, image analysis), the agent invokes custom skills
-
-### Agent-First Principle
-> **Playwright is a tool the agent uses, not a layer the app calls.**
-> The agent decides *when* to navigate, *what* to screenshot, *how* to structure notes.
-> Custom code is only written when Playwright + agent reasoning isn't sufficient.
+> **Last updated to match codebase state as of March 2026**
 
 ---
 
-## Core Domain Models
+## System Architecture — Current Implementation
 
-```csharp
-// Notebook — a collection of notes from various sources
-public class Notebook
-{
-    public Guid Id { get; set; }
-    public string Title { get; set; }
-    public string Description { get; set; }
-    public DateTime CreatedAt { get; set; }
-    public DateTime UpdatedAt { get; set; }
-    public List<Source> Sources { get; set; }
-    public List<Note> Notes { get; set; }
-}
+KnowledgeLM is a **.NET MAUI Blazor Hybrid** desktop application for AI-powered learning and note-taking. The app uses **Microsoft Semantic Kernel** for AI plugin orchestration and **GitHub Copilot CLI** (`copilot.exe`) as the external LLM interface.
 
-// Source — a content origin (YouTube video, PDF, LinkedIn course, etc.)
-public class Source
-{
-    public Guid Id { get; set; }
-    public Guid NotebookId { get; set; }
-    public SourceType Type { get; set; }
-    public string Uri { get; set; }           // URL or file path
-    public string Title { get; set; }
-    public string Metadata { get; set; }       // JSON — duration, author, etc.
-    public SourceStatus Status { get; set; }
-    public DateTime AddedAt { get; set; }
-}
+### Architecture Diagram (As Built)
 
-public enum SourceType
-{
-    YouTube,
-    Pdf,
-    TextFile,
-    LinkedInLearning,
-    Pluralsight,
-    SharePoint,
-    MicrosoftLearn,
-    WebPage
-}
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                    .NET MAUI Blazor Shell                         │
+│                                                                  │
+│  ┌─────────────────────────────────────────────────────────────┐  │
+│  │  Home.razor — FluentMultiSplitter (3-pane layout)           │  │
+│  │                                                             │  │
+│  │  ┌─────────────┐  ┌──────────────┐  ┌───────────────────┐  │  │
+│  │  │  Notes       │  │  GithubCLI   │  │  MarkdownView     │  │  │
+│  │  │  (TreeView)  │  │  (Chat UI)   │  │  (Monaco Editor)  │  │  │
+│  │  │              │  │              │  │                   │  │  │
+│  │  │  Course      │  │  User input  │  │  MonacoMarkdown   │  │  │
+│  │  │   └─Section  │  │  Agent msgs  │  │  Editor w/        │  │  │
+│  │  │      └─Res.  │  │  Tool calls  │  │  live preview     │  │  │
+│  │  └──────────────┘  └──────┬───────┘  └───────────────────┘  │  │
+│  └───────────────────────────┼──────────────────────────────────┘  │
+│                              │                                    │
+│  ┌───────────────────────────┴──────────────────────────────────┐  │
+│  │              AI Integration Layer                             │  │
+│  │                                                               │  │
+│  │  ┌───────────────────────┐   ┌─────────────────────────────┐  │  │
+│  │  │  Semantic Kernel       │   │  GitHub Copilot CLI         │  │  │
+│  │  │  ┌──────────────────┐  │   │  (copilot.exe)              │  │  │
+│  │  │  │ "NotesManagement"│  │   │                             │  │  │
+│  │  │  │  Plugin           │  │   │  CopilotClient → Session   │  │  │
+│  │  │  │  (NotesCRUDSvc)  │  │   │  - SendAsync(query)        │  │  │
+│  │  │  │  13 KernelFuncs  │  │   │  - AssistantMessageEvent   │  │  │
+│  │  │  └──────────────────┘  │   │  - ToolExecutionStartEvent │  │  │
+│  │  └───────────────────────┘   └─────────────────────────────┘  │  │
+│  └───────────────────────────────────────────────────────────────┘  │
+│                              │                                     │
+│  ┌───────────────────────────┴──────────────────────────────────┐   │
+│  │                    Data Layer                                 │   │
+│  │                                                               │   │
+│  │  ┌─────────────────────┐   ┌──────────────────────────────┐   │   │
+│  │  │  NotesContext        │   │  File System                 │   │   │
+│  │  │  (EF Core + SQLite)  │   │  Q:\Dev\Notes\              │   │   │
+│  │  │                      │   │  (Markdown + images)         │   │   │
+│  │  │  Tables:             │   │                              │   │   │
+│  │  │  - Courses           │   │  WebResourceRequested        │   │   │
+│  │  │  - Sections          │   │  intercepts /Notes/* and     │   │   │
+│  │  │  - Resources         │   │  serves from local disk      │   │   │
+│  │  └──────────────────────┘   └──────────────────────────────┘   │   │
+│  └────────────────────────────────────────────────────────────────┘   │
+│                                                                      │
+│  ┌────────────────────────────────────────────────────────────────┐   │
+│  │  Infrastructure (Aspire + OpenTelemetry)                       │   │
+│  │  - AppHost orchestration    - HTTP resilience                  │   │
+│  │  - Service discovery        - Logging / Metrics / Tracing      │   │
+│  └────────────────────────────────────────────────────────────────┘   │
+└──────────────────────────────────────────────────────────────────────┘
+```
 
-public enum SourceStatus
-{
-    Pending,
-    Extracting,
-    Extracted,
-    NoteGenerated,
-    Failed
-}
+### How It Works (Current)
 
-// Note — a generated markdown note linked to a source
-public class Note
-{
-    public Guid Id { get; set; }
-    public Guid NotebookId { get; set; }
-    public Guid? SourceId { get; set; }
-    public string Title { get; set; }
-    public string FilePath { get; set; }       // Relative path to .md file
-    public DateTime CreatedAt { get; set; }
-    public DateTime UpdatedAt { get; set; }
-}
+1. **User interacts with 3-pane layout** — Notes tree (left), Copilot chat (center), Markdown editor (right)
+2. **User sends a query** to the GithubCLI chat pane
+3. **GitHub Copilot CLI** receives the query via `CopilotSession.SendAsync()`, with Semantic Kernel functions exposed as tools
+4. **Agent invokes `NotesCRUDService` kernel functions** (e.g., `create_course`, `create_section`, `create_resource`) to manage learning content in the database
+5. **Agent can also invoke shell commands** (e.g., Playwright CLI, file system ops) as directed by the system prompt
+6. **StateService broadcasts refresh events** so the Notes tree updates reactively after data changes
+7. **Markdown files** on disk are served to the Monaco editor via `WebResourceRequested` interception in `MainPage.xaml.cs`
 
-// CaptureMode — how notes are generated
-public enum CaptureMode
-{
-    ReadAlong,      // Real-time while learner browses
-    SitBack         // Autonomous navigation + capture
-}
+---
+
+## Solution Structure (Actual)
+
+```
+KnowledgeLM/
+├── KnowledgeLM.slnx
+├── docs/
+│   ├── architecture.md              # This file
+│   ├── milestones.md
+│   ├── implementation-plan.md        # Original vision document
+│   ├── feasibility.md
+│   ├── local-content-loading-plan.md
+│   └── markdown-editor-viewer-options.md
+│
+└── src/
+    ├── KnowledgeLM.App/                          # Main MAUI Blazor application
+    │   ├── Components/
+    │   │   ├── _Imports.razor                     # Global using statements
+    │   │   ├── Routes.razor                       # SPA router config
+    │   │   ├── Layout/
+    │   │   │   ├── MainLayout.razor               # FluentLayout shell
+    │   │   │   ├── MainLayout.razor.css
+    │   │   │   ├── NavMenu.razor                  # FluentAppBar vertical nav (8 items)
+    │   │   │   └── NavMenu.razor.css
+    │   │   ├── Pages/
+    │   │   │   ├── Home.razor                     # @page "/" — 3-pane FluentMultiSplitter
+    │   │   │   └── NotFound.razor
+    │   │   └── Widgets/
+    │   │       ├── Notes.razor / .razor.cs         # FluentTreeView: Course → Section → Resource
+    │   │       ├── GithubCLI.razor / .razor.cs / .razor.js  # Copilot chat interface
+    │   │       └── MarkdownView.razor              # MonacoMarkdownEditor wrapper
+    │   ├── Data/
+    │   │   └── NotesContext.cs                     # EF Core DbContext (Courses, Sections, Resources)
+    │   ├── Helpers/
+    │   │   ├── AgentPrompts.cs                     # System prompt + Notes folder path
+    │   │   └── ManagedStream.cs                    # Stream wrapper for resource disposal
+    │   ├── Models/
+    │   │   ├── CoPilotMessages.cs                  # Chat message model (Message, EventType)
+    │   │   └── Notes/
+    │   │       ├── CommonItemProperties.cs         # Abstract base: Name, CreatedAt, LastModified, Location
+    │   │       ├── Course.cs                       # Id, Name, Description, Sections[]
+    │   │       ├── Section.cs                      # Id, CourseId, Name, Description, Resources[]
+    │   │       ├── Resource.cs                     # Id, SectionId, Name, ResourceType
+    │   │       ├── ResourceType.cs                 # Enum: Image, Video, Other, Markdown
+    │   │       └── DTOs/
+    │   │           ├── CourseDto.cs                 # Create/Update/Response DTOs
+    │   │           ├── SectionDto.cs
+    │   │           ├── ResourceDto.cs
+    │   │           └── CourseDetailResponse.cs      # Nested response with sections & resources
+    │   ├── Services/
+    │   │   ├── NotesCRUDService.cs                 # 370 lines — Semantic Kernel plugin (13 functions)
+    │   │   └── StateService.cs                     # Event-based refresh (OnRefreshRequested)
+    │   ├── MauiProgram.cs                          # DI registration, DB init, Kernel setup
+    │   ├── MainPage.xaml / .xaml.cs                # BlazorWebView host + WebResourceRequested handler
+    │   ├── App.xaml / .xaml.cs                     # MAUI Application entry
+    │   ├── KnowledgeLM.App.csproj                  # .NET 10 Windows target
+    │   └── wwwroot/
+    │       ├── index.html                          # Blazor entry point
+    │       └── app.css
+    │
+    ├── KnowledgeLM.AppHost/                       # Aspire orchestration
+    │   └── AppHost.cs                              # AddMauiProject + AddWindowsDevice
+    │
+    └── KnowledgeLM.MauiServiceDefaults/           # Shared service config
+        └── Extensions.cs                           # OpenTelemetry, service discovery, HTTP resilience
 ```
 
 ---
 
-## Agent Skills (Tools) — Copilot SDK Function Registration
+## Tech Stack (Actual)
 
-The agent's capabilities come from **skills registered as AIFunction tools** with the Copilot SDK. The agent decides when and how to invoke them.
+| Layer | Technology | Status |
+|-------|-----------|--------|
+| App Framework | .NET 10 MAUI Blazor Hybrid | ✅ Implemented |
+| UI Components | Microsoft FluentUI Blazor (v4.14) | ✅ Implemented |
+| Markdown Editor | FluentUI.Blazor.Monaco.EditorPack (0.2.2-preview) | ✅ Implemented |
+| AI Orchestration | Microsoft Semantic Kernel (v1.73) | ✅ Implemented |
+| AI Agent | GitHub Copilot CLI SDK (v0.1.24) — external `copilot.exe` process | ✅ Implemented |
+| AI Extensions | Microsoft.Extensions.AI (v10.3) | ✅ Implemented |
+| Database | EF Core 10 + SQLite | ✅ Implemented |
+| Hosting | .NET Aspire AppHost (v13.1.2) | ✅ Implemented |
+| Observability | OpenTelemetry (logging, metrics, tracing) | ✅ Implemented |
+| HTTP Resilience | Microsoft.Extensions.Http.Resilience | ✅ Implemented |
+| Browser Automation | Playwright for .NET | ❌ Not yet implemented |
+| PDF Processing | PdfPig / iText7 | ❌ Not yet implemented |
+| YouTube Transcripts | YouTube Data API v3 | ❌ Not yet implemented |
+| TTS (Podcast) | Azure Cognitive Services / OpenAI TTS | ❌ Not yet implemented |
 
-### Playwright Skill (Browser Automation)
+---
 
-The Playwright skill gives the agent full browser control. The agent uses it for navigation, authentication, content extraction, and screenshots.
+## Core Domain Models (Actual)
 
 ```csharp
-// Registered as AIFunction tools with the Copilot SDK agent
-public class PlaywrightSkill
+// Abstract base — shared properties for all entities
+public abstract class CommonItemProperties
 {
-    private readonly IPage _page;
+    [Required] [MaxLength(200)]
+    public string Name { get; set; }
+    public DateTime CreatedAt { get; set; }        // Auto-set by NotesContext
+    public DateTime LastModified { get; set; }     // Auto-set by NotesContext
+    [MaxLength(500)]
+    public string? Location { get; set; }
+}
 
-    [AIFunction("Navigate to a URL in the browser")]
-    public async Task<string> NavigateToUrl(string url)
-    {
-        await _page.GotoAsync(url);
-        return $"Navigated to {url}. Title: {await _page.TitleAsync()}";
-    }
+// Course — top-level learning container
+public class Course : CommonItemProperties
+{
+    [Key, DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+    public int Id { get; set; }
+    [MaxLength(2000)]
+    public string? Description { get; set; }
+    public List<Section> Sections { get; set; } = [];
+}
 
-    [AIFunction("Take a screenshot of the current page or element")]
-    public async Task<string> TakeScreenshot(string? selector = null, string? savePath = null)
-    {
-        var bytes = selector != null
-            ? await _page.Locator(selector).ScreenshotAsync()
-            : await _page.ScreenshotAsync(new() { FullPage = true });
-        var path = savePath ?? $"screenshot-{DateTime.Now:yyyyMMdd-HHmmss}.png";
-        await File.WriteAllBytesAsync(path, bytes);
-        return $"Screenshot saved to {path}";
-    }
+// Section — a module/chapter within a course
+public class Section : CommonItemProperties
+{
+    [Key, DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+    public int Id { get; set; }
+    public int CourseId { get; set; }               // FK → Course
+    [MaxLength(2000)]
+    public string? Description { get; set; }
+    public List<Resource> Resources { get; set; } = [];
+}
 
-    [AIFunction("Extract text content from the current page")]
-    public async Task<string> ExtractPageContent(string? selector = null)
-    {
-        return selector != null
-            ? await _page.Locator(selector).InnerTextAsync()
-            : await _page.InnerTextAsync("body");
-    }
+// Resource — a learning artifact (markdown file, image, video reference)
+public class Resource : CommonItemProperties
+{
+    [Key, DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+    public int Id { get; set; }
+    public int SectionId { get; set; }              // FK → Section
+    public ResourceType ResourceType { get; set; }
+}
 
-    [AIFunction("Click an element on the page")]
-    public async Task<string> ClickElement(string selector)
-    {
-        await _page.Locator(selector).ClickAsync();
-        return $"Clicked {selector}";
-    }
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum ResourceType { Image, Video, Other, Markdown }
+```
 
-    [AIFunction("Scroll the page in a direction")]
-    public async Task<string> ScrollPage(string direction = "down", int pixels = 500)
-    {
-        var delta = direction == "up" ? -pixels : pixels;
-        await _page.Mouse.WheelAsync(0, delta);
-        return $"Scrolled {direction} {pixels}px";
-    }
+### Database Schema
 
-    [AIFunction("Wait for an element to appear on the page")]
-    public async Task<string> WaitForContent(string selector, int timeoutMs = 10000)
-    {
-        await _page.Locator(selector).WaitForAsync(new() { Timeout = timeoutMs });
-        return $"Element {selector} is now visible";
-    }
+| Table | PK | FK | Indexes | Cascade Delete |
+|-------|----|----|---------|----------------|
+| Courses | Id (identity) | — | IX_Courses_Name | — |
+| Sections | Id (identity) | CourseId → Courses | IX_Sections_CourseId | Yes |
+| Resources | Id (identity) | SectionId → Sections | IX_Resources_SectionId | Yes |
 
-    [AIFunction("Get all links on the current page, optionally filtered by selector")]
-    public async Task<string> GetPageLinks(string? containerSelector = null)
-    {
-        var container = containerSelector != null
-            ? _page.Locator(containerSelector)
-            : _page.Locator("body");
-        var links = await container.Locator("a[href]").AllAsync();
-        var results = new List<string>();
-        foreach (var link in links)
-        {
-            var href = await link.GetAttributeAsync("href");
-            var text = await link.InnerTextAsync();
-            results.Add($"{text.Trim()} -> {href}");
-        }
-        return string.Join("\n", results);
-    }
+- `ResourceType` stored as string (max 50 chars)
+- `CreatedAt` and `LastModified` auto-managed by `NotesContext.SaveChangesAsync()`
 
-    [AIFunction("Authenticate via SSO using stored browser context")]
-    public async Task<string> AuthenticateWithSSO(string loginUrl)
-    {
-        await _page.GotoAsync(loginUrl);
-        // Agent can further interact with login form via ClickElement/TypeText
-        return $"Navigated to login page: {loginUrl}";
-    }
+---
 
-    [AIFunction("Type text into an input field")]
-    public async Task<string> TypeText(string selector, string text)
-    {
-        await _page.Locator(selector).FillAsync(text);
-        return $"Typed into {selector}";
-    }
+## AI Integration — Current Implementation
+
+### Semantic Kernel Plugin: NotesCRUDService
+
+`NotesCRUDService` is registered as a Semantic Kernel plugin named `"NotesManagement"`. It exposes 13 kernel functions that the AI agent can invoke:
+
+| Function | Returns | Description |
+|----------|---------|-------------|
+| `get_all_courses` | `List<CourseResponse>` | All courses ordered by LastModified |
+| `get_course_by_id` | `CourseDetailResponse?` | Course with sections and resources (eager loaded) |
+| `create_course` | `CourseResponse` | Create new course |
+| `update_course` | `bool` | Update course name/description/location |
+| `get_sections_by_course_id` | `List<SectionResponse>` | Sections for a course |
+| `get_section_by_id` | `SectionDetailResponse?` | Section with resources |
+| `create_section` | `SectionResponse` | Create section in a course |
+| `update_section` | `bool` | Update section details |
+| `get_resources_by_section_id` | `List<ResourceResponse>` | Resources for a section |
+| `get_resource_by_id` | `ResourceResponse?` | Single resource |
+| `create_resource` | `ResourceResponse` | Create resource in a section |
+| `update_resource` | `bool` | Update resource details |
+
+Delete operations exist but are **not** exposed as kernel functions (internal use only).
+
+### GitHub Copilot CLI Integration
+
+The `GithubCLI.razor.cs` component manages the AI chat interface:
+
+```
+CopilotClient (copilot.exe)
+    └── CopilotSession
+            ├── Tools = GetAIFunctions()      // From Semantic Kernel plugins
+            ├── SystemMessage = AgentPrompts.SystemPrompt
+            ├── Events:
+            │   ├── AssistantMessageEvent → UI (🤖 response)
+            │   ├── UserMessageEvent → UI (👤 input)
+            │   └── ToolExecutionStartEvent → UI (🛠️ tool call)
+            └── SendAsync(query)               // User input → agent
+```
+
+### System Prompt (AgentPrompts.cs)
+
+The agent is instructed to:
+1. Use Playwright CLI for browser navigation (headed, msedge)
+2. Create database entries via kernel functions (`create_course`, `create_section`, `create_resource`)
+3. Create folder structure under `KnowledgeLM_Notes/` on disk
+4. Screenshot generously, use descriptive filenames
+5. Handle pagination/scrolling
+6. Prefix folders with numeric ordering (`01-intro/`, `02-setup/`)
+7. Write `overview.md` summaries
+
+### State Management
+
+```csharp
+// StateService — simple event-based refresh
+public class StateService
+{
+    public event Action? OnRefreshRequested;
+    public void RequestRefresh() => OnRefreshRequested?.Invoke();
 }
 ```
 
-### Note Management Skill
+- `NotesCRUDService.SaveAndNotifyAsync()` calls `StateService.RequestRefresh()` after DB mutations
+- `Notes.razor` and `GithubCLI.razor` subscribe to `OnRefreshRequested` to reload data
+
+---
+
+## UI Components
+
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| `MainLayout.razor` | Layout/ | FluentLayout shell with NavMenu sidebar and body content |
+| `NavMenu.razor` | Layout/ | FluentAppBar with 8 vertical navigation items |
+| `Home.razor` | Pages/ | `@page "/"` — FluentMultiSplitter with 3 panes |
+| `Notes.razor` | Widgets/ | FluentTreeView displaying Course → Section → Resource hierarchy |
+| `GithubCLI.razor` | Widgets/ | Chat interface for GitHub Copilot CLI with message history |
+| `MarkdownView.razor` | Widgets/ | MonacoMarkdownEditor with Markdig extensions (frontmatter, tables, task lists, etc.) |
+
+---
+
+## DI Registration (MauiProgram.cs)
 
 ```csharp
-public class NoteManagementSkill
-{
-    private readonly IFileSystemNoteStore _store;
+builder.Services
+    .AddMauiBlazorWebView()
+    .AddMonacoEditorPack()
+    .AddFluentUIComponents()
+    .AddServiceDefaults()                          // Aspire: OpenTelemetry, resilience
+    .AddKernel()                                    // Semantic Kernel
+    .AddDbContextFactory<NotesContext>(...)         // EF Core SQLite (IDbContextFactory for Blazor concurrency)
+    .AddScoped<NotesCRUDService>()
+    .AddScoped<StateService>();
 
-    [AIFunction("Create a new markdown note in a notebook")]
-    public async Task<string> CreateNote(string notebookId, string title, string markdownContent)
-    {
-        var path = await _store.CreateNoteAsync(Guid.Parse(notebookId), title, markdownContent);
-        return $"Note created: {path}";
-    }
+// Plugin registration
+kernel.Plugins.AddFromObject(crudService, "NotesManagement");
 
-    [AIFunction("Append content to an existing note")]
-    public async Task<string> AppendToNote(string noteId, string markdownContent)
-    {
-        await _store.AppendAsync(Guid.Parse(noteId), markdownContent);
-        return $"Appended to note {noteId}";
-    }
-
-    [AIFunction("Read the content of a note")]
-    public async Task<string> ReadNote(string noteId)
-    {
-        return await _store.ReadAsync(Guid.Parse(noteId));
-    }
-
-    [AIFunction("Save a screenshot image to a notebook's media folder")]
-    public async Task<string> SaveScreenshot(string notebookId, string imagePath, string description)
-    {
-        var savedPath = await _store.SaveMediaAsync(Guid.Parse(notebookId), imagePath, description);
-        return $"Screenshot saved: {savedPath}. Markdown ref: ![{description}]({savedPath})";
-    }
-}
-```
-
-### File Processing Skill (Custom — for what Playwright can't do)
-
-```csharp
-public class FileProcessingSkill
-{
-    [AIFunction("Extract text from a PDF file, preserving structure")]
-    public async Task<string> ExtractPdfText(string filePath)
-    {
-        // Uses PdfPig or iText7 — Playwright can't parse PDFs
-        using var document = PdfDocument.Open(filePath);
-        var text = string.Join("\n\n", document.GetPages().Select(p => p.Text));
-        return text;
-    }
-
-    [AIFunction("Get transcript from a YouTube video URL")]
-    public async Task<string> ParseYouTubeTranscript(string youtubeUrl)
-    {
-        // Uses YouTube Data API — Playwright not needed for public transcripts
-        var transcript = await YouTubeTranscriptApi.GetTranscriptAsync(youtubeUrl);
-        return transcript;
-    }
-
-    [AIFunction("Read a text file from disk")]
-    public async Task<string> ReadTextFile(string filePath)
-    {
-        return await File.ReadAllTextAsync(filePath);
-    }
-}
-```
-
-### Screenshot Analysis Skill
-
-```csharp
-public class ScreenshotAnalysisSkill
-{
-    [AIFunction("Compare two screenshots to detect if the slide/content changed")]
-    public async Task<string> DetectSlideChange(string imagePath1, string imagePath2)
-    {
-        // Perceptual hash comparison — custom code, Playwright can't do this
-        var hash1 = ComputePerceptualHash(imagePath1);
-        var hash2 = ComputePerceptualHash(imagePath2);
-        var distance = HammingDistance(hash1, hash2);
-        var changed = distance > 10;
-        return changed
-            ? $"Content CHANGED (distance: {distance}). New slide detected."
-            : $"Content SAME (distance: {distance}). Skip screenshot.";
-    }
-
-    [AIFunction("Extract and describe text/diagrams from a screenshot using vision AI")]
-    public async Task<string> AnalyzeScreenshot(string imagePath)
-    {
-        // Sends to vision model — the agent's own LLM capability
-        // This is handled by the Copilot SDK's multi-modal support
-        var imageBytes = await File.ReadAllBytesAsync(imagePath);
-        return $"[Image at {imagePath} ready for vision analysis]";
-    }
-}
-```
-
-### Agent Wiring (DI Registration)
-
-```csharp
-// In MauiProgram.cs
-public static MauiApp CreateMauiApp()
-{
-    var builder = MauiApp.CreateBuilder();
-
-    // Copilot SDK Agent setup
-    builder.Services.AddCopilotAgent(options =>
-    {
-        options.SystemPrompt = @"You are KnowledgeLM, an AI learning companion.
-            You help users create structured Markdown notes from any content source.
-            Use the Playwright skill to navigate websites, take screenshots, and extract content.
-            Use the Note Management skill to save your generated notes.
-            Only use File Processing skill for PDFs, YouTube transcripts, or local files.
-            Structure notes with clear headings, bullet points, and embedded screenshots.";
-    });
-
-    // Register skills as agent tools
-    builder.Services.AddSingleton<PlaywrightSkill>();
-    builder.Services.AddSingleton<NoteManagementSkill>();
-    builder.Services.AddSingleton<FileProcessingSkill>();
-    builder.Services.AddSingleton<ScreenshotAnalysisSkill>();
-
-    // Register as AIFunction tools
-    builder.Services.AddAgentTools<PlaywrightSkill>();
-    builder.Services.AddAgentTools<NoteManagementSkill>();
-    builder.Services.AddAgentTools<FileProcessingSkill>();
-    builder.Services.AddAgentTools<ScreenshotAnalysisSkill>();
-
-    // ...
-}
-```
-
-### Agent Flow Example: "Sit-Back & Relax" Mode
-
-```
-User: "Create notes from this LinkedIn Learning course: https://linkedin.com/learning/azure-fundamentals"
-
-Agent thinks: "This is a LinkedIn Learning course. I need to:
-  1. Authenticate (if needed) using PlaywrightSkill.AuthenticateWithSSO
-  2. Navigate to the course using PlaywrightSkill.NavigateToUrl
-  3. Get the course structure using PlaywrightSkill.GetPageLinks
-  4. For each module/chapter:
-     a. Navigate to it
-     b. Extract content with PlaywrightSkill.ExtractPageContent
-     c. Take screenshots of key slides with PlaywrightSkill.TakeScreenshot
-     d. Check for slide changes with ScreenshotAnalysisSkill.DetectSlideChange
-  5. Synthesize all content into structured Markdown notes
-  6. Save using NoteManagementSkill.CreateNote"
-
-Agent executes tools in sequence, reasoning between each step.
+// Database
+SQLite path: {FileSystem.AppDataDirectory}/knowledgelm.db
+EnsureCreated() on startup
 ```
 
 ---
 
-## Storage Architecture
+## Web Resource Interception (MainPage.xaml.cs)
 
-```
-KnowledgeLM Data/
-├── knowledgelm.db                    # SQLite database (metadata)
-├── notebooks/
-│   ├── {notebook-id}/
-│   │   ├── notebook.json             # Notebook metadata
-│   │   ├── notes/
-│   │   │   ├── intro-to-azure.md     # Generated notes
-│   │   │   ├── chapter-2-networking.md
-│   │   │   └── ...
-│   │   ├── media/
-│   │   │   ├── screenshots/
-│   │   │   │   ├── slide-001.png
-│   │   │   │   └── ...
-│   │   │   └── audio/
-│   │   │       └── podcast-ep1.mp3
-│   │   └── sources/
-│   │       ├── uploaded.pdf
-│   │       └── ...
-```
+`MainPage` intercepts `WebResourceRequested` events to serve local files into the Blazor WebView:
+
+- Requests to `/Notes/*` are mapped to `Q:\Dev\{path}` on disk
+- Content-type headers set based on file extension (`.html`, `.jpg`, `.png`, `.css`, `.js`)
+- Enables markdown files to reference local images that render in the WebView
 
 ---
 
-## Note Generation Pipeline
+## Hardcoded Configuration
 
-```
-┌──────────┐    ┌───────────┐    ┌─────────┐    ┌────────────┐    ┌──────────┐
-│  Source   │───▶│ Connector │───▶│ Extract │───▶│ AI Agent   │───▶│ Save .md │
-│  (URL/   │    │ (detect   │    │ (text,  │    │ (structure,│    │ (file +  │
-│   file)  │    │  type)    │    │  slides,│    │  summarize,│    │  SQLite) │
-│          │    │           │    │  audio) │    │  format)   │    │          │
-└──────────┘    └───────────┘    └─────────┘    └────────────┘    └──────────┘
-                                      │                │
-                                      │         ┌──────┴──────┐
-                                      │         │ Screenshot  │
-                                      └────────▶│ Analyzer    │
-                                                │ (vision AI) │
-                                                └─────────────┘
-```
+> ⚠️ These values are currently hardcoded and should be moved to app settings:
+
+| Setting | Value | Location |
+|---------|-------|----------|
+| Copilot CLI path | `C:\Users\manojdixit\AppData\Local\Microsoft\WinGet\Links\copilot.exe` | `GithubCLI.razor.cs` |
+| Notes folder | `Q:\Dev\Notes` | `AgentPrompts.cs` |
+| Web resource root | `Q:\Dev\` | `MainPage.xaml.cs` |
+| Title bar color | `#6264A7` | `MainPage.xaml.cs` |
 
 ---
 
-## Platform-Specific Notes
+## Future Vision (Not Yet Implemented)
 
-### Windows
-- Full feature set: scraping, capture, notes, chat, quiz, podcast
-- Playwright runs natively with full browser automation
-- File system storage in `%APPDATA%/KnowledgeLM/`
+The following capabilities are planned but not yet built. See `docs/implementation-plan.md` for the original design vision.
 
-### Android
-- Reader/consumer mode: view notes, chat, quiz, podcast
-- No Playwright (browser automation not available)
-- Storage in app-specific directory
-- Future: sync with Windows instance via local network or shared storage
+### Planned Skills
+
+| Skill | Purpose | Status |
+|-------|---------|--------|
+| Playwright Skill | Browser automation — navigate, screenshot, extract, authenticate | Planned |
+| File Processing Skill | PDF text extraction (PdfPig), YouTube transcripts, text files | Planned |
+| Screenshot Analysis Skill | Slide change detection (perceptual hashing), vision AI analysis | Planned |
+| Learning Interaction Skill | RAG chat, quiz generation, podcast generation | Planned |
+
+### Planned Features
+
+- **Sit-Back Mode** — Agent autonomously navigates courses and generates notes
+- **Read-Along Mode** — Real-time note capture while learner browses
+- **RAG Chat** — Chat with notes using vector embeddings
+- **Quiz Generation** — Auto-generate quizzes from notes
+- **Podcast Generation** — TTS-based podcast from notes
+- **Android Reader** — Mobile app for consuming notes, chat, quiz (no scraping)
+
+### Planned Model Evolution
+
+The current `Course → Section → Resource` model may evolve to add:
+- `Source` entity (URL, file reference, extraction status)
+- `CaptureMode` enum (ReadAlong, SitBack)
+- Richer `Notebook` concept wrapping courses with metadata

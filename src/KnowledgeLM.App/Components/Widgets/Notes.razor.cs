@@ -1,6 +1,9 @@
-﻿using KnowledgeLM.App.Services;
+﻿using KnowledgeLM.App.Models.Notes.DTOs;
+using KnowledgeLM.App.Services;
 using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.Logging;
 using Microsoft.FluentUI.AspNetCore.Components;
+using System.Diagnostics;
 using Icons = Microsoft.FluentUI.AspNetCore.Components.Icons;
 
 namespace KnowledgeLM.App.Components.Widgets
@@ -11,6 +14,9 @@ namespace KnowledgeLM.App.Components.Widgets
         private bool loading = true;
         [Inject]
         private StateService StateService { get; set; } = default!;
+        [Inject]
+        private ILogger<Notes> Logger { get; set; } = default!;
+
 
         protected override async Task OnInitializedAsync()
         {
@@ -36,6 +42,13 @@ namespace KnowledgeLM.App.Components.Widgets
                     courses.Add(detail);
             }
             loading = false;
+        }
+
+        private async Task OnResourceSelected(ResourceResponse resourceResponse)
+        {
+            // Handle resource selection
+            Logger.LogInformation($"Selected resource: {resourceResponse.Name} ({resourceResponse.ResourceType})");
+            await StateService.OnResourceSelected(resourceResponse);
         }
 
         public void Dispose()

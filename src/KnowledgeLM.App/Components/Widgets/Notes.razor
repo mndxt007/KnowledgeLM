@@ -38,7 +38,7 @@ else
                                     @if (resource.ResourceType == ResourceType.Markdown | resource.ResourceType == ResourceType.Other)
                                     {
                                         <FluentTreeItem Text="@($"{resource.Name}")" 
-                                                        IconCollapsed="@GetResourceIcon(resource.ResourceType)" />
+                                                        IconCollapsed="@GetResourceIcon(resource.ResourceType)" SelectedChanged="@(() => OnResourceSelected(resource))"  />
                                     }
                                     
                                 }
