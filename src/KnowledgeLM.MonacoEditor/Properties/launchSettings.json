@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "KnowledgeLM.MonacoEditor": {
+      "commandName": "Project",
+      "nativeDebugging": true
+    }
+  }
+}

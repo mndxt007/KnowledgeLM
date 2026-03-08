@@ -23,36 +23,15 @@ namespace KnowledgeLM.MonacoEditor.Components
         private TextEditorSession? editorSession_;
         private DotNetObjectReference<MonacoMarkdownEditor>? dotNetRef_;
         private string editorId_ = $"monaco-markdown-editor-{Guid.NewGuid():N}";
-        private bool isInitialized_ = false;
+        private bool isInitialized_;
+        private string? previousMarkdown_;
 
         // =======================================================
         // CONTENT & DATA BINDING
         // =======================================================
 
         [Parameter]
-        public string? Markdown
-        {
-            get => editorSession_?.Content;
-            set
-            {
-                if (editorSession_ == null)
-                {
-                    editorSession_ = new TextEditorSession(value);
-                }
-                else if (editorSession_.Content != value)
-                {
-                    editorSession_ = new TextEditorSession(value);
-
-                    if (isInitialized_)
-                    {
-                        _ = JSRuntime.InvokeVoidAsync(
-                            "monacoMarkdownEditor.setContent",
-                            editorId_,
-                            value ?? string.Empty);
-                    }
-                }
-            }
-        }
+        public string? Markdown { get; set; }
 
         [Parameter]
         public EventCallback<string> MarkdownChanged { get; set; }
@@ -106,7 +85,7 @@ namespace KnowledgeLM.MonacoEditor.Components
         private CancellationTokenSource? cancellationTokenSource_;
         private const int ThrottleDelayMs = 500;
         private List<string> contentChunks_ = new();
-        private int expectedTotalChunks_ = 0;
+        private int expectedTotalChunks_;
 
         public string EditorId => editorId_;
         public bool IsModified => editorSession_?.IsModified ?? false;
@@ -116,6 +95,24 @@ namespace KnowledgeLM.MonacoEditor.Components
 
         protected override void OnParametersSet()
         {
+            if (editorSession_ == null)
+            {
+                editorSession_ = new TextEditorSession(Markdown);
+            }
+            else if (previousMarkdown_ != Markdown)
+            {
+                editorSession_ = new TextEditorSession(Markdown);
+
+                if (isInitialized_)
+                {
+                    _ = JSRuntime.InvokeVoidAsync(
+                        "monacoMarkdownEditor.setContent",
+                        editorId_,
+                        Markdown ?? string.Empty);
+                }
+            }
+
+            previousMarkdown_ = Markdown;
             Html = CreateMarkupString();
             base.OnParametersSet();
         }

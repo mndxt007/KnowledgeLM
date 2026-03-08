@@ -1,9 +1,10 @@
 ﻿@using KnowledgeLM.MonacoEditor.Markdown
 
-<FluentCard>
+<FluentCard Style="height: 100%; display: flex; flex-direction: column;">
+   
     @if(ResourceResponse is not null)
     {
-        <FluentBreadcrumb>
+        <FluentBreadcrumb Class="p-2">
             <FluentBreadcrumbItem Href="#">
                 @CourseResponse?.Name
                 <FluentIcon Value="@(new Icons.Regular.Size16.BookOpen())" Color="@Color.Neutral" Slot="start" />
@@ -17,7 +18,26 @@
                 <FluentIcon Value="@(new Icons.Regular.Size16.Document())" Color="@Color.Neutral" Slot="start" />
             </FluentBreadcrumbItem>
         </FluentBreadcrumb>
+        <FluentGrid Justify="JustifyContent.SpaceBetween" Class="px-2 mb-1">
+            <FluentGridItem >
+                <FluentLabel Typo="Typography.Body" Color="@Color.Accent" Style="font-family: 'Cascadia Mono', Consolas, 'Courier New', monospace; font-size: var(--type-ramp-minus-1-font-size);">
+                    <FluentIcon Value="@(new Icons.Regular.Size16.Notebook())" Color="@Color.Accent" />
+                    @ResourceResponse?.Location
+                </FluentLabel>
+            </FluentGridItem>
+            <FluentGridItem>
+                <FluentLabel Typo="Typography.Body" Color="@Color.Accent" Style="font-family: 'Cascadia Mono', Consolas, 'Courier New', monospace; font-size: var(--type-ramp-minus-1-font-size);">
+                    <FluentIcon Value="@(new Icons.Regular.Size16.Clock())" Color="@Color.Accent" />
+                    @ResourceResponse?.LastModified.ToLocalTime().ToString("g")
+                </FluentLabel>
+            </FluentGridItem>
+        </FluentGrid>
+
+
     }
-    <MonacoMarkdownEditor Markdown="@MarkDownContent"
-                      MarkdownChanged="@OnChanged"  />
+    <FluentCard Style="box-shadow: 0 4px 8px var(--accent-fill-rest); border-radius: 4px; flex: 1; min-height: 0;" Class="m-2">
+        <MonacoMarkdownEditor Markdown="@MarkDownContent"
+                              MarkdownChanged="@OnChanged" />
+    </FluentCard>
+        
 </FluentCard>
