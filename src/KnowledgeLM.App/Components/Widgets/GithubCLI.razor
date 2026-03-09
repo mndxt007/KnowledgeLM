@@ -1,25 +1,48 @@
 ﻿@page "/Chat"
-
-<FluentStack Orientation="Orientation.Vertical" VerticalAlignment="VerticalAlignment.Center" HorizontalAlignment="HorizontalAlignment.Center" Style="height: 100%;" >
-    <FluentCard Width="90%" Style="height: 80%; overflow-y: auto;" Id="AgentMessages">
-        @*  @if(cardText.Count == 0)
-        {
-            <p>Test the CoPilot Integration</p>
-        } *@
-        <div class="agent-messages">
-            @foreach (var line in cardText)
-            {
-                <FluentLabel Color="GetColor(line.EventType)" Class="metadata-label">@GetEmoji(line.EventType) [@line.EventType] @line.Message</FluentLabel>
-            }
+<FluentStack Orientation="Orientation.Vertical" VerticalAlignment="VerticalAlignment.Center" HorizontalAlignment="HorizontalAlignment.Center" Style="height: 100%;">
+    @if (!HasNoCopilotMesssages)
+    {
+        <div class="p-2 @(AgentWorking ? "glowing-container" : "")" style="width: 90%; height: 70%;">
+            <FluentCard Style="overflow-y: auto;" Id="AgentMessages">
+                @*  @if(cardText.Count == 0)
+                {
+                    <p>Test the CoPilot Integration</p>
+                } *@
+                <div class="agent-messages">
+                    @foreach (var line in cardText)
+                    {
+                        <FluentLabel Color="GetColor(line.EventType)" Class="metadata-label">@GetEmoji(line.EventType) [@line.EventType] @line.Message</FluentLabel>
+                    }
+                </div>
+            </FluentCard>
         </div>
-    </FluentCard>
-    <FluentStack Orientation="Orientation.Horizontal" Width="90%">
+    }
+
+
+    <FluentStack Orientation="Orientation.Horizontal" Width="90%" Style="gap: 8px;">
         <FluentTextField @bind-Value="queryText"
                          Placeholder="Send message to Copilot"
                          Style="flex: 1;" />
         <FluentButton Appearance="Appearance.Accent"
-                      OnClick="@(() => HandleQuery(queryText))" Loading="agentWorking">
+                      OnClick="@(() => HandleQuery(queryText))" Loading="SendingMessage">
             Send
         </FluentButton>
     </FluentStack>
+    <FluentGrid Justify="JustifyContent.Center" Width="90%" Class="m-2">
+        <FluentGridItem> 
+            <FluentButton Disabled="HasNoCopilotMesssages" OnClick="NewSession">
+                <FluentIcon Value="@(new Icons.Filled.Size28.AddCircle())" Color="@Color.Accent" Title="New Session" />
+            </FluentButton>    
+        </FluentGridItem>
+        <FluentGridItem>
+            <FluentButton OnClick="AbortSession">
+                <FluentIcon Value="@(new Icons.Filled.Size28.RecordStop())" Color="@Color.Error" Title="Abort" />
+            </FluentButton>
+        </FluentGridItem>
+        <FluentGridItem>
+            <FluentButton Appearance="Appearance.Stealth" >
+                <FluentIcon Value="@(new Icons.Filled.Size28.Circle())" Color="@Color.Success" Title="Status" />
+            </FluentButton>
+        </FluentGridItem>
+    </FluentGrid>
 </FluentStack>
