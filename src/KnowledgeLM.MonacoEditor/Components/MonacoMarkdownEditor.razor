@@ -1,0 +1,44 @@
+@using KnowledgeLM.MonacoEditor.Memento
+
+
+
+<div class="monaco-markdown-editor-container">
+    <FluentLayout Style="height: 100%;">
+        <FluentSplitter Orientation="Orientation.Horizontal" 
+                        BarSize="6" 
+                        Panel1Size="55%"
+                        Panel1MinSize="10%" 
+                        Panel2MinSize="10%"
+                        Style="height: 100%;">
+            <Panel1>
+                <div class="monaco-editor-panel">
+                    <MarkdownToolbar EditorId="@editorId_" />
+                    
+                    @if (IsModified)
+                    {
+                        <div class="modified-badge"></div>
+                    }
+                    @if (!isInitialized_)
+                    {
+                        <div class="loading-overlay">
+                            <FluentProgressRing />
+                        </div>
+                    }
+                    <div id="@editorId_" class="monaco-editor-container"></div>
+                </div>
+            </Panel1>
+            <Panel2>
+                <div class="preview-panel">
+                    <div class="preview-panel-header">
+                        <FluentLabel Style="font-weight: 600; font-size: 0.875rem;">
+                            Preview
+                        </FluentLabel>
+                    </div>
+                    <div class="preview-panel-content">
+                        @Html
+                    </div>
+                </div>
+            </Panel2>
+        </FluentSplitter>
+    </FluentLayout>
+</div>

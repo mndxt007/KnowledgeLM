@@ -1,4 +1,4 @@
-﻿using FluentUI.Blazor.Monaco.EditorPack.Extensions;
+﻿using KnowledgeLM.MonacoEditor.Extensions;
 using KnowledgeLM.App.Data;
 using KnowledgeLM.App.Services;
 using Microsoft.EntityFrameworkCore;

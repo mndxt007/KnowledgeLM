@@ -1,0 +1,39 @@
+﻿@using KnowledgeLM.MonacoEditor.Markdown
+
+<FluentCard Style="height: 100%; display: flex; flex-direction: column;">
+   
+    @if(ResourceResponse is not null)
+    {
+        <FluentBreadcrumb Class="p-2">
+            <FluentBreadcrumbItem Href="#">
+                @CourseResponse?.Name
+                <FluentIcon Value="@(new Icons.Regular.Size16.BookOpen())" Color="@Color.Neutral" Slot="start" />
+            </FluentBreadcrumbItem>
+            <FluentBreadcrumbItem Href="#">
+                @SectionResponse?.Name
+                <FluentIcon Value="@(new Icons.Regular.Size16.Folder())" Color="@Color.Neutral" Slot="start" />
+            </FluentBreadcrumbItem>
+            <FluentBreadcrumbItem>
+                @ResourceResponse?.Name
+                <FluentIcon Value="@(new Icons.Regular.Size16.Document())" Color="@Color.Neutral" Slot="start" />
+            </FluentBreadcrumbItem>
+        </FluentBreadcrumb>
+        <div class="metadata-bar">
+            <span class="badge-pill-success">
+                <FluentIcon Value="@(new Icons.Regular.Size16.Notebook())" Color="@Color.Fill" />
+                @ResourceResponse?.Location
+            </span>
+            <span class="badge-pill-success">
+                <FluentIcon Value="@(new Icons.Regular.Size16.Clock())" Color="@Color.Fill" />
+                @ResourceResponse?.LastModified.ToLocalTime().ToString("g")
+            </span>
+        </div>
+
+
+    }
+    <FluentCard Style="box-shadow: 0 4px 8px var(--accent-fill-rest); border-radius: 4px; flex: 1; min-height: 0;" Class="m-2">
+        <MonacoMarkdownEditor Markdown="@MarkDownContent"
+                              MarkdownChanged="@OnChanged" />
+    </FluentCard>
+        
+</FluentCard>
