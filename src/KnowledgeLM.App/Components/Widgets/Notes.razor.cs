@@ -3,6 +3,7 @@ using KnowledgeLM.App.Services;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.Logging;
 using Microsoft.FluentUI.AspNetCore.Components;
+using Microsoft.JSInterop;
 using System.Diagnostics;
 using Icons = Microsoft.FluentUI.AspNetCore.Components.Icons;
 
@@ -18,12 +19,22 @@ namespace KnowledgeLM.App.Components.Widgets
         private ILogger<Notes> Logger { get; set; } = default!;
         [Inject]
         private IDialogService DialogService { get; set; } = default!;
+        [Inject]
+        private IJSRuntime JS { get; set; } = default!;
 
-        
+
         protected override async Task OnInitializedAsync()
         {
             await LoadCoursesAsync();
             StateService.OnRefreshRequested += OnRefreshRequested;
+        }
+
+        protected override async Task OnAfterRenderAsync(bool firstRender)
+        {
+            if (!loading && courses?.Count > 0)
+            {
+                await JS.InvokeVoidAsync("setupTreeContextMenuStopPropagation");
+            }
         }
 
         private async void OnRefreshRequested()
