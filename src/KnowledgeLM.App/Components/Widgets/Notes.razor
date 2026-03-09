@@ -1,7 +1,7 @@
 @inject KnowledgeLM.App.Services.NotesCRUDService CrudService
 
 
-<FluentHeader>
+<FluentHeader Class="btn me-2">
     Notebooks
 </FluentHeader>
 @if (loading)
@@ -17,7 +17,7 @@ else
     <FluentTreeView>
         @foreach (var course in courses)
         {
-            <FluentTreeItem Text="@course.Name" Expanded="true" IconExpanded="new Icons.Regular.Size20.Book().WithColor(Color.Accent)" >
+            <FluentTreeItem Text="@course.Name" Expanded="true" IconExpanded="@(new Icons.Regular.Size20.BookOpen().WithColor(Color.Accent))" IconCollapsed="@(new Icons.Regular.Size20.Book().WithColor(Color.Accent))" >
                 @if (course.Sections.Count == 0)
                 {
                     @* <FluentTreeItem Text="No sections" Disabled="true"  /> *@
@@ -26,7 +26,7 @@ else
                 {
                     @foreach (var sec in course.Sections)
                     {
-                        <FluentTreeItem Text="@sec.Name" IconExpanded="new Icons.Regular.Size20.Notebook().WithColor(Color.Accent)">
+                        <FluentTreeItem Text="@sec.Name" IconExpanded="@(new Icons.Regular.Size20.FolderOpen().WithColor(Color.Success))" IconCollapsed="@(new Icons.Regular.Size20.Folder().WithColor(Color.Success))">
                             @if (sec.Resources.Count == 0)
                             {
                                 <FluentTreeItem Text="No resources" Disabled="true" />

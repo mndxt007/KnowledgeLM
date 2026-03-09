@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.JSInterop;
 using Microsoft.SemanticKernel;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Net.Sockets;
 using FluentColor = Microsoft.FluentUI.AspNetCore.Components.Color;
 
@@ -39,7 +40,9 @@ namespace KnowledgeLM.App.Components.Widgets
                 UseLoggedInUser = true,
                 //CliPath = "C:\\Users\\manojdixit\\AppData\\Local\\Microsoft\\WinGet\\Links\\copilot.exe",
                 Logger = CopilotLogger,
-                LogLevel = "debug"
+                //LogLevel = "debug",
+                //CliArgs = ["--log-dir", "D:\\LearnLoom\\Logs"]
+
             });
 
             StateService.OnRefreshRequested += OnRefreshRequested;
@@ -69,6 +72,13 @@ namespace KnowledgeLM.App.Components.Widgets
 
             }
 
+            var getNotesFolderTool = AIFunctionFactory.Create(
+                () => AgentPrompts.NotesFolder,
+                name: "get_notes_folder",
+                description: "Returns the absolute folder path on disk where all resources (courses, sections, notes, images) must be stored. Call this before creating any files or folders.");
+
+            aiFunctions.Add(getNotesFolderTool);
+
             return aiFunctions;
         }
 
@@ -85,9 +95,33 @@ namespace KnowledgeLM.App.Components.Widgets
                     SystemMessage = new()
                     {
                         Content = AgentPrompts.SystemPrompt,
-                        Mode = SystemMessageMode.Append,
+                        Mode = SystemMessageMode.Replace,
                         
-                    }
+                    },
+                    McpServers = new Dictionary<string, object>
+                    {
+                        ["playwright"] = new McpLocalServerConfig
+                        {
+                            Type = "local",
+                            Command = "npx",
+                            Args = [
+                                "@playwright/mcp@latest",
+                                "--browser",
+                                "msedge",
+                                "--user-data-dir",
+                                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Microsoft", "Edge", "User Data")
+                                ],
+                            Tools = new List<string> { "*" },
+                            //Env = new Dictionary<string, string>
+                            //{
+                            //    ["NODE_DEBUG"] = "mcp",
+                            //    ["DEBUG"] = "*",
+                            //    ["MCP_DEBUG"] = "1",
+
+                            //},
+                             
+                        }
+                    },
                 });
                 session.On(async evt =>
                 {
