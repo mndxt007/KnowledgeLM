@@ -221,3 +221,51 @@ h1:focus {
     color: var(--neutral-foreground-hint) !important;
     filter: none;
 }
+
+.glowing-container {
+    position: relative;
+    padding: 4px;
+    background-color: var(--neutral-layer-1);
+    border-radius: 20px;
+    overflow: hidden;
+    z-index: 0;
+    isolation: isolate;
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+    .glowing-container::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 200%;
+        height: 200%;
+        background: conic-gradient( from 0deg, #03a9f4, #ff00e0, #ffeb3b, #03a9f4 );
+        animation: rotate-pulse 4s linear infinite;
+        z-index: -2;
+        filter: blur(40px);
+        opacity: 0.8;
+    }
+
+    .glowing-container::after {
+        content: '';
+        position: absolute;
+        inset: 3px;
+        background-color: var(--neutral-layer-1);
+        border-radius: 17px;
+        z-index: -1;
+        transition: background-color 0.3s ease;
+    }
+
+@keyframes rotate-pulse {
+    0%, 100% {
+        transform: translate(-50%, -50%) rotate(0deg) scale(1);
+        opacity: 0.8;
+    }
+    50% {
+        transform: translate(-50%, -50%) rotate(180deg) scale(1.05);
+        opacity: 1;
+    }
+}
+

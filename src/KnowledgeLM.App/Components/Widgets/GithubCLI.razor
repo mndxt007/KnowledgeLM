@@ -1,25 +1,102 @@
 ﻿@page "/Chat"
 
-<FluentStack Orientation="Orientation.Vertical" VerticalAlignment="VerticalAlignment.Center" HorizontalAlignment="HorizontalAlignment.Center" Style="height: 100%;" >
-    <FluentCard Width="90%" Style="height: 80%; overflow-y: auto;" Id="AgentMessages">
-        @*  @if(cardText.Count == 0)
-        {
-            <p>Test the CoPilot Integration</p>
-        } *@
-        <div class="agent-messages">
-            @foreach (var line in cardText)
+<div class="chat-container">
+    @* ── Header bar ── *@
+    <div class="chat-header">
+        <div class="chat-header-title">
+            <FluentIcon Value="@(new Icons.Regular.Size24.BotSparkle())" Color="@Color.Accent" />
+            <span>Copilot Chat</span>
+            @if (AgentWorking)
             {
-                <FluentLabel Color="GetColor(line.EventType)" Class="metadata-label">@GetEmoji(line.EventType) [@line.EventType] @line.Message</FluentLabel>
+                <FluentProgressRing Style="width: 18px; height: 18px;" />
             }
         </div>
-    </FluentCard>
-    <FluentStack Orientation="Orientation.Horizontal" Width="90%">
+        <div class="chat-header-actions">
+            <FluentButton Appearance="Appearance.Stealth" Title="Session status" Disabled>
+                <FluentIcon Value="@(new Icons.Filled.Size20.Circle())" Color="@SessionStatus" />
+            </FluentButton>
+            <FluentButton Appearance="Appearance.Stealth" Title="New session"
+                          Disabled="HasNoCopilotMesssages" OnClick="NewSession">
+                <FluentIcon Value="@(new Icons.Regular.Size20.AddCircle())" Color="@Color.Accent" />
+            </FluentButton>
+            <FluentButton Appearance="Appearance.Stealth" Title="Abort"
+                          OnClick="AbortSession">
+                <FluentIcon Value="@(new Icons.Regular.Size20.RecordStop())" Color="@Color.Error" />
+            </FluentButton>
+        </div>
+    </div>
+
+    @* ── Messages area ── *@
+    <div class="chat-messages @(AgentWorking ? "chat-messages--glowing" : "")" id="AgentMessages">
+        @if (HasNoCopilotMesssages)
+        {
+            <div class="chat-empty">
+                <FluentIcon Value="@(new Icons.Regular.Size48.ChatSparkle())" Color="@Color.Accent" />
+                <p>Send a message to start chatting with Copilot</p>
+            </div>
+        }
+        else
+        {
+            @foreach (var line in cardText)
+            {
+                @if (line.EventType == "user.message")
+                {
+                    <div class="chat-bubble chat-bubble--user">
+                        <div class="chat-bubble-content">@line.Message</div>
+                    </div>
+                }
+                else if (line.EventType == "assistant.message")
+                {
+                    <div class="chat-bubble chat-bubble--assistant">
+                        <div class="chat-bubble-avatar">
+                            <FluentIcon Value="@(new Icons.Regular.Size20.BotSparkle())" Color="@Color.Accent" />
+                        </div>
+                        <div class="chat-bubble-body">
+                            @if (!string.IsNullOrWhiteSpace(line.ReasoningText))
+                            {
+                                <details class="reasoning-block">
+                                    <summary>
+                                        <FluentIcon Value="@(new Icons.Regular.Size16.LightbulbFilament())" Color="@Color.Neutral" />
+                                        <span>Reasoning</span>
+                                    </summary>
+                                    <div class="reasoning-content">@line.ReasoningText</div>
+                                </details>
+                            }
+                            <div class="chat-bubble-content markdown-content">
+                                @if (line.Message == "\n\n")
+                                {
+                                    <span>..</span>
+                                }
+                                else if (!string.IsNullOrWhiteSpace(line.Message))
+                                {
+                                    @((MarkupString)RenderMarkdown(line.Message))
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+                else if (line.EventType == "tool.execution_start")
+                {
+                    <div class="chat-bubble chat-bubble--tool">
+                        <FluentIcon Value="@(new Icons.Regular.Size16.Wrench())" Color="@Color.Neutral" />
+                        <span>@line.Message</span>
+                    </div>
+                }
+            }
+        }
+    </div>
+
+    @* ── Input bar ── *@
+    <div class="chat-input-bar">
         <FluentTextField @bind-Value="queryText"
-                         Placeholder="Send message to Copilot"
-                         Style="flex: 1;" />
+                         Immediate="true"
+                         Placeholder="Ask Copilot anything…"
+                         Style="flex: 1;"
+                         @onkeydown="HandleKeyDown" />
         <FluentButton Appearance="Appearance.Accent"
-                      OnClick="@(() => HandleQuery(queryText))" Loading="agentWorking">
-            Send
-        </FluentButton>
-    </FluentStack>
-</FluentStack>
+                      IconStart="@(new Icons.Regular.Size20.Send())"
+                      OnClick="@(() => HandleQuery(queryText))"
+                      Loading="SendingMessage"
+                      Title="Send" />
+    </div>
+</div>
