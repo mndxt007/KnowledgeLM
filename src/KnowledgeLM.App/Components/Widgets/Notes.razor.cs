@@ -3,6 +3,7 @@ using KnowledgeLM.App.Services;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.Logging;
 using Microsoft.FluentUI.AspNetCore.Components;
+using Microsoft.JSInterop;
 using System.Diagnostics;
 using Icons = Microsoft.FluentUI.AspNetCore.Components.Icons;
 
@@ -16,12 +17,24 @@ namespace KnowledgeLM.App.Components.Widgets
         private StateService StateService { get; set; } = default!;
         [Inject]
         private ILogger<Notes> Logger { get; set; } = default!;
+        [Inject]
+        private IDialogService DialogService { get; set; } = default!;
+        [Inject]
+        private IJSRuntime JS { get; set; } = default!;
 
 
         protected override async Task OnInitializedAsync()
         {
             await LoadCoursesAsync();
             StateService.OnRefreshRequested += OnRefreshRequested;
+        }
+
+        protected override async Task OnAfterRenderAsync(bool firstRender)
+        {
+            if (!loading && courses?.Count > 0)
+            {
+                await JS.InvokeVoidAsync("setupTreeContextMenuStopPropagation");
+            }
         }
 
         private async void OnRefreshRequested()
@@ -49,6 +62,42 @@ namespace KnowledgeLM.App.Components.Widgets
             // Handle resource selection
             Logger.LogInformation($"Selected resource: {resourceResponse.Name} ({resourceResponse.ResourceType})");
             await StateService.OnResourceSelected(resourceResponse);
+        }
+
+        private async Task DeleteCourseAsync(CourseDetailResponse course)
+        {
+            var dialog = await DialogService.ShowConfirmationAsync(
+                $"Are you sure you want to delete course \"{course.Name}\" and all its sections and resources?",
+                "Delete", "Cancel", "Delete Course");
+            var result = await dialog.Result;
+            if (!result.Cancelled)
+            {
+                await CrudService.DeleteCourseAsync(course.Id);
+            }
+        }
+
+        private async Task DeleteSectionAsync(SectionDetailResponse section)
+        {
+            var dialog = await DialogService.ShowConfirmationAsync(
+                $"Are you sure you want to delete section \"{section.Name}\" and all its resources?",
+                "Delete", "Cancel", "Delete Section");
+            var result = await dialog.Result;
+            if (!result.Cancelled)
+            {
+                await CrudService.DeleteSectionAsync(section.Id);
+            }
+        }
+
+        private async Task DeleteResourceAsync(ResourceResponse resource)
+        {
+            var dialog = await DialogService.ShowConfirmationAsync(
+                $"Are you sure you want to delete resource \"{resource.Name}\"?",
+                "Delete", "Cancel", "Delete Resource");
+            var result = await dialog.Result;
+            if (!result.Cancelled)
+            {
+                await CrudService.DeleteResourceAsync(resource.Id);
+            }
         }
 
         public void Dispose()

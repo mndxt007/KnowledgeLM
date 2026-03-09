@@ -28,12 +28,34 @@
                 @ResourceResponse?.LastModified.ToLocalTime().ToString("g")
             </span>
         </div>
-
-
+        <FluentCard Style="box-shadow: 0 4px 8px var(--accent-fill-rest); border-radius: 4px; flex: 1; min-height: 0;" Class="m-2">
+            <MonacoMarkdownEditor Markdown="@MarkDownContent"
+                                  MarkdownChanged="@OnChanged" />
+        </FluentCard>
     }
-    <FluentCard Style="box-shadow: 0 4px 8px var(--accent-fill-rest); border-radius: 4px; flex: 1; min-height: 0;" Class="m-2">
-        <MonacoMarkdownEditor Markdown="@MarkDownContent"
-                              MarkdownChanged="@OnChanged" />
-    </FluentCard>
-        
+    else
+    {
+        <div class="landing-container">
+            <div class="landing-icon">
+                <FluentIcon Value="@(new Icons.Regular.Size32.Notebook())" Color="@Color.Accent" Style="width:48px;height:48px;" />
+            </div>
+            <h2 class="landing-title">Welcome to LearnLoom</h2>
+            <p class="landing-subtitle">Select a resource from the sidebar to edit or view</p>
+            <div class="landing-hints">
+                <span class="landing-hint">
+                    <FluentIcon Value="@(new Icons.Regular.Size16.BookOpen())" Color="@Color.Neutral" />
+                    Browse courses
+                </span>
+                <span class="landing-hint">
+                    <FluentIcon Value="@(new Icons.Regular.Size16.Folder())" Color="@Color.Neutral" />
+                    Open a section
+                </span>
+                <span class="landing-hint">
+                    <FluentIcon Value="@(new Icons.Regular.Size16.Document())" Color="@Color.Neutral" />
+                    Pick a resource
+                </span>
+            </div>
+        </div>
+    }
+
 </FluentCard>
