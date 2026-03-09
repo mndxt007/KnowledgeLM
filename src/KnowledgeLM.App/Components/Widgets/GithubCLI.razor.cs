@@ -40,8 +40,9 @@ namespace KnowledgeLM.App.Components.Widgets
                 UseLoggedInUser = true,
                 //CliPath = "C:\\Users\\manojdixit\\AppData\\Local\\Microsoft\\WinGet\\Links\\copilot.exe",
                 Logger = CopilotLogger,
-                LogLevel = "debug",
-                 
+                //LogLevel = "debug",
+                //CliArgs = ["--log-dir", "D:\\LearnLoom\\Logs"]
+
             });
 
             StateService.OnRefreshRequested += OnRefreshRequested;
@@ -97,22 +98,30 @@ namespace KnowledgeLM.App.Components.Widgets
                         Mode = SystemMessageMode.Replace,
                         
                     },
-                    //McpServers = new Dictionary<string, object>
-                    //{
-                    //    ["playwright"] = new McpLocalServerConfig
-                    //    {
-                    //        Type = "local",
-                    //        Command = "npx",
-                    //        Args = [
-                    //            "@playwright/mcp@latest",
-                    //            "--browser",
-                    //            "msedge",
-                    //            "--user-data-dir",
-                    //            $@"{Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData)}\Microsoft\Edge\User Data"
-                    //            ],
-                    //        Tools = new List<string> { "*" },
-                    //    },
-                    //},
+                    McpServers = new Dictionary<string, object>
+                    {
+                        ["playwright"] = new McpLocalServerConfig
+                        {
+                            Type = "local",
+                            Command = "npx",
+                            Args = [
+                                "@playwright/mcp@latest",
+                                "--browser",
+                                "msedge",
+                                "--user-data-dir",
+                                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Microsoft", "Edge", "User Data")
+                                ],
+                            Tools = new List<string> { "*" },
+                            //Env = new Dictionary<string, string>
+                            //{
+                            //    ["NODE_DEBUG"] = "mcp",
+                            //    ["DEBUG"] = "*",
+                            //    ["MCP_DEBUG"] = "1",
+
+                            //},
+                             
+                        }
+                    },
                 });
                 session.On(async evt =>
                 {
