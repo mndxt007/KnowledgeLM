@@ -1,53 +1,88 @@
 @inject KnowledgeLM.App.Services.NotesCRUDService CrudService
 
+<div class="notes-panel">
+    <div class="notes-header">
+        <FluentIcon Value="@(new Icons.Regular.Size24.Notebook())" Color="Color.Custom" CustomColor="var(--foreground-on-accent-rest, #ffffff)" />
+        <span class="notes-header-title">Notebooks</span>
+    </div>
 
-<FluentHeader Class="btn me-2">
-    Notebooks
-</FluentHeader>
-@if (loading)
-{
-    <FluentProgress />
-}
-else if (courses is null || courses.Count == 0)
-{
-    <FluentLabel Typo="Typography.Body">No courses found.</FluentLabel>
-}
-else
-{
-    <FluentTreeView>
-        @foreach (var course in courses)
+    <div class="notes-content">
+        @if (loading)
         {
-            <FluentTreeItem Text="@course.Name" Expanded="true" IconExpanded="@(new Icons.Regular.Size20.BookOpen().WithColor(Color.Accent))" IconCollapsed="@(new Icons.Regular.Size20.Book().WithColor(Color.Accent))" >
-                @if (course.Sections.Count == 0)
+            <FluentProgress />
+        }
+        else if (courses is null || courses.Count == 0)
+        {
+            <div class="notes-empty">
+                <FluentIcon Value="@(new Icons.Regular.Size28.BookOpen())" Color="Color.Neutral" />
+                <FluentLabel Typo="Typography.Body" Color="Color.Disabled">No courses found.</FluentLabel>
+            </div>
+        }
+        else
+        {
+            <FluentTreeView>
+                @foreach (var course in courses)
                 {
-                    @* <FluentTreeItem Text="No sections" Disabled="true"  /> *@
-                }
-                else
-                {
-                    @foreach (var sec in course.Sections)
-                    {
-                        <FluentTreeItem Text="@sec.Name" IconExpanded="@(new Icons.Regular.Size20.FolderOpen().WithColor(Color.Success))" IconCollapsed="@(new Icons.Regular.Size20.Folder().WithColor(Color.Success))">
-                            @if (sec.Resources.Count == 0)
+                    <FluentTreeItem Id="@($"course-{course.Id}")" Text="@course.Name" Expanded="true" IconExpanded="@(new Icons.Regular.Size20.BookOpen().WithColor(Color.Accent))" IconCollapsed="@(new Icons.Regular.Size20.Book().WithColor(Color.Accent))">
+                        @if (course.Sections.Count == 0)
+                        {
+                            @* <FluentTreeItem Text="No sections" Disabled="true"  /> *@
+                        }
+                        else
+                        {
+                            @foreach (var sec in course.Sections)
                             {
-                                <FluentTreeItem Text="No resources" Disabled="true" />
-                            }
-                            else
-                            {
-                                @foreach (var resource in sec.Resources)
-                                {
-                                    @if (resource.ResourceType == ResourceType.Markdown | resource.ResourceType == ResourceType.Other)
+                                <FluentTreeItem Id="@($"section-{sec.Id}")" Text="@sec.Name" IconExpanded="@(new Icons.Regular.Size20.FolderOpen().WithColor(Color.Success))" IconCollapsed="@(new Icons.Regular.Size20.Folder().WithColor(Color.Success))">
+                                    @if (sec.Resources.Count == 0)
                                     {
-                                        <FluentTreeItem Text="@($"{resource.Name}")" 
-                                                        IconCollapsed="@GetResourceIcon(resource.ResourceType)" SelectedChanged="@(() => OnResourceSelected(resource))"  />
+                                        <FluentTreeItem Text="No resources" Disabled="true" />
                                     }
-                                    
-                                }
+                                    else
+                                    {
+                                        @foreach (var resource in sec.Resources)
+                                        {
+                                            @if (resource.ResourceType == ResourceType.Markdown | resource.ResourceType == ResourceType.Other)
+                                            {
+                                                <FluentTreeItem Id="@($"resource-{resource.Id}")" Text="@($"{resource.Name}")"
+                                                                IconCollapsed="@GetResourceIcon(resource.ResourceType)" SelectedChanged="@(() => OnResourceSelected(resource))" />
+                                            }
+
+                                        }
+                                    }
+                                </FluentTreeItem>
                             }
-                        </FluentTreeItem>
+                        }
+                    </FluentTreeItem>
+                }
+            </FluentTreeView>
+            @foreach (var course in courses)
+            {
+                <FluentMenu Anchor="@($"course-{course.Id}")" Trigger="MouseButton.Right">
+                    <FluentMenuItem OnClick="@(() => DeleteCourseAsync(course))">
+                        <FluentIcon Value="@(new Icons.Regular.Size20.Delete())" Slot="start" Color="Color.Error" />
+                        Delete
+                    </FluentMenuItem>
+                </FluentMenu>
+                @foreach (var sec in course.Sections)
+                {
+                    <FluentMenu Anchor="@($"section-{sec.Id}")" Trigger="MouseButton.Right">
+                        <FluentMenuItem OnClick="@(() => DeleteSectionAsync(sec))">
+                            <FluentIcon Value="@(new Icons.Regular.Size20.Delete())" Slot="start" Color="Color.Error" />
+                            Delete
+                        </FluentMenuItem>
+                    </FluentMenu>
+                    @foreach (var resource in sec.Resources)
+                    {
+                        <FluentMenu Anchor="@($"resource-{resource.Id}")" Trigger="MouseButton.Right">
+                            <FluentMenuItem OnClick="@(() => DeleteResourceAsync(resource))">
+                                <FluentIcon Value="@(new Icons.Regular.Size20.Delete())" Slot="start" Color="Color.Error" />
+                                Delete
+                            </FluentMenuItem>
+                        </FluentMenu>
                     }
                 }
-            </FluentTreeItem>
+            }
         }
-    </FluentTreeView>
-}
+    </div>
+</div>
 

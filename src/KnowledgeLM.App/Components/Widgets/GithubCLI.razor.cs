@@ -24,14 +24,18 @@ namespace KnowledgeLM.App.Components.Widgets
         private StateService StateService { get; set; } = default!;
         [Inject]
         private Kernel Kernel { get; set; } = default!;
+        private bool HasNoCopilotMesssages => cardText is null || cardText.IsEmpty;
 
         private CopilotClient? ghcpClient;
         private CopilotSession? session;
         private ConcurrentBag<CoPilotMessages> cardText = [];
         private string queryText = string.Empty;
-        private bool agentWorking = false;
+        private bool SendingMessage = false;
         [Inject]
         private ILogger<CopilotClient> CopilotLogger { get; set; } = default!;
+        private FluentColor SessionStatus { get; set; } = FluentColor.Warning;
+
+        private bool AgentWorking { get; set; } = false;
 
         protected override void OnInitialized()
         {
@@ -85,18 +89,29 @@ namespace KnowledgeLM.App.Components.Widgets
         protected override async Task OnAfterRenderAsync(bool firstRender)
         {
             //await JS.InvokeVoidAsync("scrollToBottom", "AgentMessages");
-            if (firstRender && ghcpClient is not null)
+            if (firstRender)
+            {
+                await CreateNewSession();
+            }
+
+            
+
+        }
+
+        private async Task CreateNewSession()
+        {
+            if(ghcpClient is not null)
             {
                 session = await ghcpClient.CreateSessionAsync(new SessionConfig
                 {
                     Tools = GetAIFunctions(),
                     OnPermissionRequest = PermissionHandler.ApproveAll,
-                     
+
                     SystemMessage = new()
                     {
                         Content = AgentPrompts.SystemPrompt,
                         Mode = SystemMessageMode.Replace,
-                        
+
                     },
                     McpServers = new Dictionary<string, object>
                     {
@@ -105,12 +120,12 @@ namespace KnowledgeLM.App.Components.Widgets
                             Type = "local",
                             Command = "npx",
                             Args = [
-                                "@playwright/mcp@latest",
+                               "@playwright/mcp@latest",
                                 "--browser",
                                 "msedge",
-                                "--user-data-dir",
-                                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Microsoft", "Edge", "User Data")
-                                ],
+                                //"--user-data-dir",
+                               //Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Microsoft", "Edge", "User Data")
+                               ],
                             Tools = new List<string> { "*" },
                             //Env = new Dictionary<string, string>
                             //{
@@ -119,7 +134,7 @@ namespace KnowledgeLM.App.Components.Widgets
                             //    ["MCP_DEBUG"] = "1",
 
                             //},
-                             
+
                         }
                     },
                 });
@@ -150,7 +165,7 @@ namespace KnowledgeLM.App.Components.Widgets
                                 StateHasChanged();
                             });
                             break;
-                         case ToolExecutionStartEvent toolExecutionCompleteEvent:
+                        case ToolExecutionStartEvent toolExecutionCompleteEvent:
                             await InvokeAsync(() =>
                             {
                                 cardText.Add(new()
@@ -161,23 +176,48 @@ namespace KnowledgeLM.App.Components.Widgets
                                 StateHasChanged();
                             });
                             break;
+                        case SessionStartEvent:
+                        case SessionResumeEvent:
+                            SessionStatus = FluentColor.Success;
+                            await InvokeAsync(StateHasChanged);
+                            break;
+                        case SessionShutdownEvent:
+                        case SessionErrorEvent:
+                            SessionStatus = FluentColor.Error;
+                            await InvokeAsync(StateHasChanged);
+                            break;
+                        case AssistantTurnStartEvent:
+                            CopilotLogger.LogInformation("Assistant Started Working");
+                            AgentWorking = true;
+                            await InvokeAsync(StateHasChanged);
+                            break;
+                        case AssistantTurnEndEvent:
+                        case AbortEvent:
+                            CopilotLogger.LogInformation("Assistant Turn ended");
+                            AgentWorking = false;
+                            await InvokeAsync(StateHasChanged);
+                            break;
                     }
                 });
             }
-
             
-
         }
 
         private async Task HandleQuery(string query)
         {
             if(session!=null)
             {
-                agentWorking = true;
+                SendingMessage = true;
                 await InvokeAsync(StateHasChanged);
                 //await session.SendAndWaitAsync(new MessageOptions { Prompt = query });
-                await session.SendAsync(new MessageOptions { Prompt = query });
-                agentWorking = false;
+                await session.SendAsync(
+                    new MessageOptions 
+                    { 
+                        Prompt = query,
+                        Mode = "immediate"
+                    }
+                    );
+                SendingMessage = false;
                 await InvokeAsync(StateHasChanged);
                 queryText = String.Empty;
             }
@@ -200,6 +240,17 @@ namespace KnowledgeLM.App.Components.Widgets
            _ => "❓"
        };
 
+        private void NewSession(Microsoft.AspNetCore.Components.Web.MouseEventArgs args)
+        {
+            throw new NotImplementedException();
+        }
+        private async Task AbortSession(Microsoft.AspNetCore.Components.Web.MouseEventArgs args)
+        {
+            if(session is not null)
+            {
+                await session.AbortAsync();
+            }
+        }
     }
 
     
