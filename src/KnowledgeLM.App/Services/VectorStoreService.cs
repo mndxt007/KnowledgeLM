@@ -1,0 +1,294 @@
+using KnowledgeLM.App.Data;
+using KnowledgeLM.App.Models.AI;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.VectorData;
+using Microsoft.SemanticKernel.Connectors.SqliteVec;
+using System.Text.RegularExpressions;
+
+namespace KnowledgeLM.App.Services;
+
+/// <summary>
+/// Manages vectorization of notebook resources and provides scoped vector search.
+/// Uses SQLite vector store (SqliteVec) for embeddings storage.
+/// </summary>
+public class VectorStoreService
+{
+    private readonly IDbContextFactory<NotesContext> _contextFactory;
+    private readonly NotesCRUDService _notesCrudService;
+    private readonly IEmbeddingGenerator<string, Embedding<float>>? _embeddingGenerator;
+    private readonly ILogger<VectorStoreService> _logger;
+    private readonly string _vectorDbConnectionString;
+    private const string CollectionName = "note_chunks";
+
+    public VectorStoreService(
+        IDbContextFactory<NotesContext> contextFactory,
+        NotesCRUDService notesCrudService,
+        ILogger<VectorStoreService> logger,
+        IEmbeddingGenerator<string, Embedding<float>>? embeddingGenerator = null)
+    {
+        _contextFactory = contextFactory;
+        _notesCrudService = notesCrudService;
+        _embeddingGenerator = embeddingGenerator;
+        _logger = logger;
+        var vectorDbPath = Path.Combine(FileSystem.AppDataDirectory, "knowledgelm_vectors.db");
+        _vectorDbConnectionString = $"Data Source={vectorDbPath}";
+    }
+
+    /// <summary>
+    /// Check if a resource has been vectorized.
+    /// </summary>
+    public async Task<bool> IsResourceVectorizedAsync(int resourceId)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.VectorizedResources
+            .AnyAsync(v => v.ResourceId == resourceId && v.Status == "Completed");
+    }
+
+    /// <summary>
+    /// Get the vectorization status for a resource.
+    /// </summary>
+    public async Task<VectorizedResource?> GetVectorizationStatusAsync(int resourceId)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.VectorizedResources
+            .AsNoTracking()
+            .FirstOrDefaultAsync(v => v.ResourceId == resourceId);
+    }
+
+    /// <summary>
+    /// Vectorize a resource: chunk its markdown content, generate embeddings, and store in vector DB.
+    /// </summary>
+    public async Task VectorizeResourceAsync(int resourceId)
+    {
+        if (_embeddingGenerator is null)
+        {
+            _logger.LogWarning("No embedding generator configured. Skipping vectorization for resource {ResourceId}.", resourceId);
+            return;
+        }
+
+        var resource = await _notesCrudService.GetResourceByIdAsync(resourceId);
+        if (resource is null)
+        {
+            _logger.LogWarning("Resource {ResourceId} not found.", resourceId);
+            return;
+        }
+
+        var breadcrumb = await _notesCrudService.GetBreadcrumbAsync(resourceId);
+        if (breadcrumb is null) return;
+
+        await UpsertVectorizationRecord(resourceId, "Processing", 0);
+
+        try
+        {
+            var filePath = resource.Location;
+            if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
+            {
+                _logger.LogWarning("Resource file not found at {Path}", filePath);
+                await UpsertVectorizationRecord(resourceId, "Failed", 0);
+                return;
+            }
+
+            var content = await File.ReadAllTextAsync(filePath);
+            var chunks = ChunkMarkdown(content);
+
+            if (chunks.Count == 0)
+            {
+                await UpsertVectorizationRecord(resourceId, "Completed", 0);
+                return;
+            }
+
+            var embeddings = await _embeddingGenerator.GenerateAsync(chunks);
+
+            var noteChunks = new List<NoteChunk>();
+            for (int i = 0; i < chunks.Count; i++)
+            {
+                noteChunks.Add(new NoteChunk
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    ResourceId = resourceId,
+                    SectionId = breadcrumb.SectionId,
+                    CourseId = breadcrumb.CourseId,
+                    Text = chunks[i],
+                    SourceName = resource.Name,
+                    SourceLink = filePath ?? string.Empty,
+                    Embedding = embeddings[i].Vector
+                });
+            }
+
+            var collection = new SqliteCollection<string, NoteChunk>(
+                _vectorDbConnectionString, CollectionName);
+
+            await collection.EnsureCollectionExistsAsync();
+
+            foreach (var chunk in noteChunks)
+            {
+                await collection.UpsertAsync(chunk);
+            }
+
+            await UpsertVectorizationRecord(resourceId, "Completed", noteChunks.Count);
+            _logger.LogInformation("Vectorized resource {ResourceId} with {ChunkCount} chunks.", resourceId, noteChunks.Count);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to vectorize resource {ResourceId}.", resourceId);
+            await UpsertVectorizationRecord(resourceId, "Failed", 0);
+        }
+    }
+
+    /// <summary>
+    /// Search vectorized notes with optional scoping by resource, section, or course.
+    /// </summary>
+    public async Task<List<NoteSearchResult>> SearchAsync(
+        string query,
+        int? resourceId = null,
+        int? sectionId = null,
+        int? courseId = null,
+        int top = 5)
+    {
+        if (_embeddingGenerator is null)
+        {
+            _logger.LogWarning("No embedding generator configured. Cannot search.");
+            return [];
+        }
+
+        try
+        {
+            var queryEmbedding = await _embeddingGenerator.GenerateAsync(query);
+
+            var collection = new SqliteCollection<string, NoteChunk>(
+                _vectorDbConnectionString, CollectionName);
+
+            var searchOptions = new VectorSearchOptions<NoteChunk>();
+
+            // Add filter if scoping is provided
+            if (resourceId.HasValue)
+            {
+                searchOptions.Filter = r => r.ResourceId == resourceId.Value;
+            }
+            else if (sectionId.HasValue)
+            {
+                searchOptions.Filter = r => r.SectionId == sectionId.Value;
+            }
+            else if (courseId.HasValue)
+            {
+                searchOptions.Filter = r => r.CourseId == courseId.Value;
+            }
+
+            var results = collection.SearchAsync(queryEmbedding.Vector, top, searchOptions);
+
+            var searchResults = new List<NoteSearchResult>();
+            await foreach (var result in results)
+            {
+                searchResults.Add(new NoteSearchResult
+                {
+                    Text = result.Record.Text,
+                    SourceName = result.Record.SourceName,
+                    SourceLink = result.Record.SourceLink,
+                    ResourceId = result.Record.ResourceId,
+                    Score = result.Score ?? 0
+                });
+            }
+
+            return searchResults;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Vector search failed for query: {Query}", query);
+            return [];
+        }
+    }
+
+    private async Task UpsertVectorizationRecord(int resourceId, string status, int chunkCount)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var existing = await context.VectorizedResources
+            .FirstOrDefaultAsync(v => v.ResourceId == resourceId);
+
+        if (existing is not null)
+        {
+            existing.Status = status;
+            existing.ChunkCount = chunkCount;
+            if (status == "Completed")
+                existing.VectorizedAt = DateTime.UtcNow;
+        }
+        else
+        {
+            context.VectorizedResources.Add(new VectorizedResource
+            {
+                ResourceId = resourceId,
+                Status = status,
+                ChunkCount = chunkCount,
+                VectorizedAt = status == "Completed" ? DateTime.UtcNow : default
+            });
+        }
+        await context.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Chunks markdown content by headings and paragraphs.
+    /// </summary>
+    internal static List<string> ChunkMarkdown(string markdown, int maxChunkSize = 1000)
+    {
+        if (string.IsNullOrWhiteSpace(markdown))
+            return [];
+
+        var chunks = new List<string>();
+        var sections = Regex.Split(markdown, @"(?=^#{1,6}\s)", RegexOptions.Multiline);
+
+        foreach (var section in sections)
+        {
+            var trimmed = section.Trim();
+            if (string.IsNullOrWhiteSpace(trimmed))
+                continue;
+
+            if (trimmed.Length <= maxChunkSize)
+            {
+                chunks.Add(trimmed);
+            }
+            else
+            {
+                var paragraphs = Regex.Split(trimmed, @"\n\s*\n");
+                var currentChunk = string.Empty;
+
+                foreach (var para in paragraphs)
+                {
+                    var trimmedPara = para.Trim();
+                    if (string.IsNullOrWhiteSpace(trimmedPara))
+                        continue;
+
+                    if (currentChunk.Length + trimmedPara.Length + 2 <= maxChunkSize)
+                    {
+                        currentChunk = string.IsNullOrEmpty(currentChunk)
+                            ? trimmedPara
+                            : $"{currentChunk}\n\n{trimmedPara}";
+                    }
+                    else
+                    {
+                        if (!string.IsNullOrEmpty(currentChunk))
+                            chunks.Add(currentChunk);
+                        currentChunk = trimmedPara;
+                    }
+                }
+
+                if (!string.IsNullOrEmpty(currentChunk))
+                    chunks.Add(currentChunk);
+            }
+        }
+
+        return chunks;
+    }
+}
+
+/// <summary>
+/// Represents a search result from the vector store.
+/// </summary>
+public class NoteSearchResult
+{
+    public string Text { get; set; } = string.Empty;
+    public string SourceName { get; set; } = string.Empty;
+    public string SourceLink { get; set; } = string.Empty;
+    public int ResourceId { get; set; }
+    public double Score { get; set; }
+}
