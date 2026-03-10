@@ -366,4 +366,30 @@ public class NotesCRUDService
         await SaveAndNotifyAsync(context);
         return true;
     }
+
+    // ─── Breadcrumb Operations ───────────────────────────────────
+
+    [KernelFunction("get_breadcrumb")]
+    [Description("Gets the breadcrumb path (Course > Section > Resource) for a given resource ID.")]
+    public async Task<ResourceBreadcrumbDto?> GetBreadcrumbAsync(int resourceId)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var resource = await context.Resources
+            .AsNoTracking()
+            .Include(r => r.Section)
+                .ThenInclude(s => s.Course)
+            .FirstOrDefaultAsync(r => r.Id == resourceId);
+
+        if (resource is null) return null;
+
+        return new ResourceBreadcrumbDto
+        {
+            CourseId = resource.Section.Course.Id,
+            CourseName = resource.Section.Course.Name,
+            SectionId = resource.Section.Id,
+            SectionName = resource.Section.Name,
+            ResourceId = resource.Id,
+            ResourceName = resource.Name
+        };
+    }
 }

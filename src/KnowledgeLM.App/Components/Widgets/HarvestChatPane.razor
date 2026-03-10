@@ -1,0 +1,175 @@
+@using Markdig
+
+<div class="harvest-chat-container">
+    @* ── Header ── *@
+    <div class="harvest-chat-header">
+        <div class="harvest-chat-header-title">
+            <FluentIcon Value="@(new Icons.Regular.Size24.ChatSparkle())" Color="@Color.Accent" />
+            <span>Harvest Chat</span>
+            @if (AgentWorking)
+            {
+                <FluentProgressRing Style="width: 18px; height: 18px;" />
+            }
+        </div>
+        <div class="harvest-chat-header-actions">
+            <FluentButton Appearance="Appearance.Stealth" Title="Session status" Disabled>
+                <FluentIcon Value="@(new Icons.Filled.Size20.Circle())" Color="@SessionStatus" />
+            </FluentButton>
+            <FluentButton Appearance="Appearance.Stealth" Title="New session"
+                          Disabled="HasNoMessages" OnClick="NewSession">
+                <FluentIcon Value="@(new Icons.Regular.Size20.AddCircle())" Color="@Color.Accent" />
+            </FluentButton>
+            <FluentButton Appearance="Appearance.Stealth" Title="Abort" OnClick="AbortSession">
+                <FluentIcon Value="@(new Icons.Regular.Size20.RecordStop())" Color="@Color.Error" />
+            </FluentButton>
+        </div>
+    </div>
+
+    @* ── Breadcrumb scope bar ── *@
+    @if (HarvestState.CurrentScope is not null)
+    {
+        <div class="harvest-scope-bar">
+            <FluentBreadcrumb>
+                <FluentBreadcrumbItem>
+                    <FluentIcon Value="@(new Icons.Regular.Size16.BookOpen())" Color="@Color.Neutral" Slot="start" />
+                    @HarvestState.CurrentScope.CourseName
+                </FluentBreadcrumbItem>
+                <FluentBreadcrumbItem>
+                    <FluentIcon Value="@(new Icons.Regular.Size16.Folder())" Color="@Color.Neutral" Slot="start" />
+                    @HarvestState.CurrentScope.SectionName
+                </FluentBreadcrumbItem>
+                <FluentBreadcrumbItem>
+                    <FluentIcon Value="@(new Icons.Regular.Size16.Document())" Color="@Color.Neutral" Slot="start" />
+                    @HarvestState.CurrentScope.ResourceName
+                </FluentBreadcrumbItem>
+            </FluentBreadcrumb>
+            <FluentButton Appearance="Appearance.Stealth" Title="Clear scope" OnClick="ClearScope">
+                <FluentIcon Value="@(new Icons.Regular.Size16.Dismiss())" Color="@Color.Neutral" />
+            </FluentButton>
+        </div>
+
+        @* ── Flashcards/Podcasts action bar ── *@
+        <div class="harvest-action-bar">
+            @if (HarvestState.HasFlashcards)
+            {
+                <FluentButton Appearance="Appearance.Outline" IconStart="@(new Icons.Regular.Size16.Flash())"
+                              OnClick="ViewFlashcards" Title="View Flashcards">
+                    Flashcards (@HarvestState.FlashcardCount)
+                </FluentButton>
+            }
+            else
+            {
+                <FluentButton Appearance="Appearance.Stealth" IconStart="@(new Icons.Regular.Size16.Flash())"
+                              OnClick="@(() => RequestGeneration("flashcards"))" Title="Generate Flashcards">
+                    Generate Flashcards
+                </FluentButton>
+            }
+
+            @if (HarvestState.HasPodcast)
+            {
+                <FluentButton Appearance="Appearance.Outline" IconStart="@(new Icons.Regular.Size16.Headphones())"
+                              OnClick="PlayPodcast" Title="Play Podcast">
+                    Play Podcast
+                </FluentButton>
+            }
+            else
+            {
+                <FluentButton Appearance="Appearance.Stealth" IconStart="@(new Icons.Regular.Size16.Headphones())"
+                              OnClick="@(() => RequestGeneration("podcast"))" Title="Generate Podcast">
+                    Generate Podcast
+                </FluentButton>
+            }
+        </div>
+    }
+
+    @* ── Podcast Player ── *@
+    @if (showPodcastPlayer && activePodcast is not null)
+    {
+        <PodcastPlayer Podcast="@activePodcast" OnClose="ClosePodcastPlayer" />
+    }
+
+    @* ── Flashcard Viewer ── *@
+    @if (showFlashcardViewer && activeFlashcards is not null)
+    {
+        <div class="harvest-flashcard-container">
+            <div class="harvest-flashcard-header">
+                <FluentLabel Typo="Typography.Body" Weight="FontWeight.Bold">Flashcards</FluentLabel>
+                <FluentButton Appearance="Appearance.Stealth"
+                              IconStart="@(new Icons.Regular.Size16.Dismiss())"
+                              OnClick="CloseFlashcardViewer"
+                              Title="Close" />
+            </div>
+            <FlashcardViewer Flashcards="@activeFlashcards" />
+        </div>
+    }
+
+    @* ── Messages area ── *@
+    <div class="harvest-chat-messages @(AgentWorking ? "harvest-chat-messages--glowing" : "")" id="HarvestMessages">
+        @if (HasNoMessages)
+        {
+            <div class="harvest-chat-empty">
+                <FluentIcon Value="@(new Icons.Regular.Size48.ChatSparkle())" Color="@Color.Accent" />
+                <p>Select a resource and ask questions about your notes</p>
+            </div>
+        }
+        else
+        {
+            @foreach (var line in messages)
+            {
+                @if (line.EventType == "user.message")
+                {
+                    <div class="chat-bubble chat-bubble--user">
+                        <div class="chat-bubble-content">@line.Message</div>
+                    </div>
+                }
+                else if (line.EventType == "assistant.message")
+                {
+                    <div class="chat-bubble chat-bubble--assistant">
+                        <div class="chat-bubble-avatar">
+                            <FluentIcon Value="@(new Icons.Regular.Size20.BotSparkle())" Color="@Color.Accent" />
+                        </div>
+                        <div class="chat-bubble-body">
+                            @if (!string.IsNullOrWhiteSpace(line.ReasoningText))
+                            {
+                                <details class="reasoning-block">
+                                    <summary>
+                                        <FluentIcon Value="@(new Icons.Regular.Size16.LightbulbFilament())" Color="@Color.Neutral" />
+                                        <span>Reasoning</span>
+                                    </summary>
+                                    <div class="reasoning-content">@line.ReasoningText</div>
+                                </details>
+                            }
+                            <div class="chat-bubble-content markdown-content">
+                                @if (!string.IsNullOrWhiteSpace(line.Message) && line.Message != "\n\n")
+                                {
+                                    @((MarkupString)RenderMarkdown(line.Message))
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+                else if (line.EventType == "tool.execution_start")
+                {
+                    <div class="chat-bubble chat-bubble--tool">
+                        <FluentIcon Value="@(new Icons.Regular.Size16.Wrench())" Color="@Color.Neutral" />
+                        <span>@line.Message</span>
+                    </div>
+                }
+            }
+        }
+    </div>
+
+    @* ── Input bar ── *@
+    <div class="harvest-chat-input-bar">
+        <FluentTextField @bind-Value="queryText"
+                         Immediate="true"
+                         Placeholder="Ask about your notes…"
+                         Style="flex: 1;"
+                         @onkeydown="HandleKeyDown" />
+        <FluentButton Appearance="Appearance.Accent"
+                      IconStart="@(new Icons.Regular.Size20.Send())"
+                      OnClick="@(() => HandleQuery(queryText))"
+                      Loading="SendingMessage"
+                      Title="Send" />
+    </div>
+</div>

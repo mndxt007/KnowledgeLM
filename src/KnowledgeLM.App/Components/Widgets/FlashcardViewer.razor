@@ -1,0 +1,34 @@
+@if (Flashcards is not null && Flashcards.Count > 0)
+{
+    <div class="flashcard-viewer">
+        <div class="flashcard-header">
+            <FluentLabel Typo="Typography.Body" Weight="FontWeight.Bold">
+                Flashcards (@(currentIndex + 1) / @Flashcards.Count)
+            </FluentLabel>
+        </div>
+
+        <div class="flashcard-card @(isFlipped ? "flashcard-card--flipped" : "")" @onclick="ToggleFlip">
+            <div class="flashcard-front">
+                <FluentIcon Value="@(new Icons.Regular.Size16.QuestionCircle())" Color="@Color.Accent" />
+                <p>@Flashcards[currentIndex].Question</p>
+            </div>
+            <div class="flashcard-back">
+                <FluentIcon Value="@(new Icons.Regular.Size16.Checkmark())" Color="@Color.Success" />
+                <p>@Flashcards[currentIndex].Answer</p>
+            </div>
+        </div>
+
+        <div class="flashcard-nav">
+            <FluentButton Appearance="Appearance.Stealth"
+                          IconStart="@(new Icons.Regular.Size20.ArrowLeft())"
+                          Disabled="@(currentIndex == 0)"
+                          OnClick="Previous"
+                          Title="Previous" />
+            <FluentButton Appearance="Appearance.Stealth"
+                          IconStart="@(new Icons.Regular.Size20.ArrowRight())"
+                          Disabled="@(currentIndex >= Flashcards.Count - 1)"
+                          OnClick="Next"
+                          Title="Next" />
+        </div>
+    </div>
+}
