@@ -58,6 +58,54 @@ public class VectorStoreService
     }
 
     /// <summary>
+    /// Get vectorization status for multiple resource IDs.
+    /// </summary>
+    public async Task<Dictionary<int, string>> GetVectorizationStatusBatchAsync(IEnumerable<int> resourceIds)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.VectorizedResources
+            .AsNoTracking()
+            .Where(v => resourceIds.Contains(v.ResourceId))
+            .ToDictionaryAsync(v => v.ResourceId, v => v.Status);
+    }
+
+    /// <summary>
+    /// Vectorize all resources in a section.
+    /// </summary>
+    public async Task VectorizeSectionAsync(int sectionId, Action<int, string>? onProgress = null)
+    {
+        var resources = await _notesCrudService.GetResourcesBySectionIdAsync(sectionId);
+        foreach (var resource in resources)
+        {
+            if (resource.ResourceType != Models.Notes.ResourceType.Markdown &&
+                resource.ResourceType != Models.Notes.ResourceType.Other)
+                continue;
+
+            var isVectorized = await IsResourceVectorizedAsync(resource.Id);
+            if (!isVectorized)
+            {
+                onProgress?.Invoke(resource.Id, "Processing");
+                await VectorizeResourceAsync(resource.Id);
+                onProgress?.Invoke(resource.Id, "Completed");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Vectorize all resources across all sections in a course.
+    /// </summary>
+    public async Task VectorizeCourseAsync(int courseId, Action<int, string>? onProgress = null)
+    {
+        var course = await _notesCrudService.GetCourseByIdAsync(courseId);
+        if (course is null) return;
+
+        foreach (var section in course.Sections)
+        {
+            await VectorizeSectionAsync(section.Id, onProgress);
+        }
+    }
+
+    /// <summary>
     /// Vectorize a resource: chunk its markdown content, generate embeddings, and store in vector DB.
     /// </summary>
     public async Task VectorizeResourceAsync(int resourceId)

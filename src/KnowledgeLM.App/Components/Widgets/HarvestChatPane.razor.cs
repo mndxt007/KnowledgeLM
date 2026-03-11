@@ -57,17 +57,28 @@ public partial class HarvestChatPane : IDisposable
             Your job is to help users understand and learn from their notes.
             
             You have access to these tools:
-            - search_notes: Search through the user's vectorized notebook content
+            - get_current_context: Get the currently scoped resource/section/course. Always call this first to understand what the user is looking at.
+            - search_notes: Search through the user's vectorized notebook content. Use IDs from get_current_context to scope your search.
             - get_flashcards: Get flashcards for a resource
             - save_flashcards: Save generated flashcards
             - generate_podcast_audio: Generate podcast audio from SSML
             - save_podcast: Save podcast metadata
             
             When answering questions:
-            1. Use search_notes to find relevant content from the user's notebooks
-            2. Cite your sources with markdown links when possible
-            3. If the user asks to generate flashcards, create Q&A pairs and save them
-            4. If the user asks to generate a podcast, create a conversational SSML script with two speakers
+            1. Always call get_current_context first to see what resource the user has selected
+            2. Use search_notes with the appropriate scope IDs to find relevant content
+            3. Cite your sources with markdown links when possible
+            
+            When generating flashcards:
+            1. Call get_current_context to get the current resource ID
+            2. Use search_notes to retrieve the content
+            3. Create Q&A pairs and save them using save_flashcards with the resource ID from context
+            
+            When generating podcasts:
+            1. Call get_current_context to get the current resource ID
+            2. Use search_notes to retrieve the content
+            3. Create a conversational SSML script with two speakers
+            4. Generate audio using generate_podcast_audio and save metadata using save_podcast
             
             Format your responses in Markdown.
             """;
@@ -126,6 +137,13 @@ public partial class HarvestChatPane : IDisposable
                 await InvokeAsync(() => { AgentWorking = true; StateHasChanged(); });
                 break;
             case AssistantTurnEndEvent:
+                await InvokeAsync(async () =>
+                {
+                    AgentWorking = false;
+                    await RefreshContentAvailability();
+                    StateHasChanged();
+                });
+                break;
             case AbortEvent:
                 await InvokeAsync(() => { AgentWorking = false; StateHasChanged(); });
                 break;
@@ -139,12 +157,7 @@ public partial class HarvestChatPane : IDisposable
         SendingMessage = true;
         await InvokeAsync(StateHasChanged);
 
-        var scope = HarvestState.CurrentScope;
-        var fullQuery = scope is not null
-            ? $"[Context: searching in resource '{scope.ResourceName}' (ID: {scope.ResourceId}), section '{scope.SectionName}' (ID: {scope.SectionId}), course '{scope.CourseName}' (ID: {scope.CourseId})]\n\n{query}"
-            : query;
-
-        await CopilotService.SendAsync(fullQuery);
+        await CopilotService.SendAsync(query);
         SendingMessage = false;
         queryText = string.Empty;
         await InvokeAsync(StateHasChanged);
@@ -181,15 +194,23 @@ public partial class HarvestChatPane : IDisposable
         HarvestState.ClearScope();
     }
 
-    private async Task RequestGeneration(string type)
+    private async Task RefreshContentAvailability()
     {
         var scope = HarvestState.CurrentScope;
         if (scope is null) return;
 
+        var hasFlashcards = await FlashcardService.HasFlashcardsAsync(scope.ResourceId);
+        var flashcardCount = hasFlashcards ? (await FlashcardService.GetFlashcardsByResourceIdAsync(scope.ResourceId)).Count : 0;
+        var hasPodcast = await PodcastService.HasPodcastAsync(scope.ResourceId);
+        HarvestState.UpdateContentAvailability(hasFlashcards, flashcardCount, hasPodcast);
+    }
+
+    private async Task RequestGeneration(string type)
+    {
         var prompt = type switch
         {
-            "flashcards" => $"Generate flashcards for resource ID {scope.ResourceId} ('{scope.ResourceName}'). Search the notes content, create Q&A pairs, and save them using save_flashcards.",
-            "podcast" => $"Generate a podcast for resource ID {scope.ResourceId} ('{scope.ResourceName}'). Search the notes content, create a conversational SSML script with two speakers (en-US-AndrewMultilingualNeural and en-US-AvaMultilingualNeural), generate the audio using generate_podcast_audio, and save the metadata using save_podcast.",
+            "flashcards" => "Generate flashcards for the currently scoped resource. Use get_current_context to find the resource, search the notes content, create Q&A pairs, and save them using save_flashcards.",
+            "podcast" => "Generate a podcast for the currently scoped resource. Use get_current_context to find the resource, search the notes content, create a conversational SSML script with two speakers (en-US-AndrewMultilingualNeural and en-US-AvaMultilingualNeural), generate the audio using generate_podcast_audio, and save the metadata using save_podcast.",
             _ => string.Empty
         };
 

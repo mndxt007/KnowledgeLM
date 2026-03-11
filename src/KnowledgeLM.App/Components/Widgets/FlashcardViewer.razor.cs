@@ -1,4 +1,5 @@
 using KnowledgeLM.App.Models.AI;
+using Markdig;
 using Microsoft.AspNetCore.Components;
 
 namespace KnowledgeLM.App.Components.Widgets;
@@ -10,6 +11,16 @@ public partial class FlashcardViewer
 
     private int currentIndex = 0;
     private bool isFlipped = false;
+
+    private static readonly MarkdownPipeline MarkdownPipeline = new MarkdownPipelineBuilder()
+        .UseAdvancedExtensions()
+        .Build();
+
+    private static string RenderMarkdown(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return string.Empty;
+        return Markdown.ToHtml(text, MarkdownPipeline);
+    }
 
     private void ToggleFlip() => isFlipped = !isFlipped;
 

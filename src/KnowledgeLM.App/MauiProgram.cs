@@ -91,6 +91,13 @@ namespace KnowledgeLM.App
                 context.Database.EnsureCreated();
 
                 // Ensure AI tables exist (handles case where DB was created before AI entities were added)
+                // Drop and recreate to ensure ON DELETE CASCADE is set
+                context.Database.ExecuteSqlRaw("PRAGMA foreign_keys = OFF;");
+                context.Database.ExecuteSqlRaw(@"
+                    DROP TABLE IF EXISTS VectorizedResources;
+                    DROP TABLE IF EXISTS Flashcards;
+                    DROP TABLE IF EXISTS Podcasts;
+                ");
                 context.Database.ExecuteSqlRaw(@"
                     CREATE TABLE IF NOT EXISTS VectorizedResources (
                         Id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -98,7 +105,7 @@ namespace KnowledgeLM.App
                         VectorizedAt TEXT NOT NULL,
                         ChunkCount INTEGER NOT NULL DEFAULT 0,
                         Status TEXT NOT NULL DEFAULT 'Pending',
-                        FOREIGN KEY (ResourceId) REFERENCES Resources(Id)
+                        FOREIGN KEY (ResourceId) REFERENCES Resources(Id) ON DELETE CASCADE
                     );
                     CREATE UNIQUE INDEX IF NOT EXISTS IX_VectorizedResources_ResourceId ON VectorizedResources(ResourceId);
 
@@ -108,7 +115,7 @@ namespace KnowledgeLM.App
                         Question TEXT NOT NULL,
                         Answer TEXT NOT NULL,
                         CreatedAt TEXT NOT NULL,
-                        FOREIGN KEY (ResourceId) REFERENCES Resources(Id)
+                        FOREIGN KEY (ResourceId) REFERENCES Resources(Id) ON DELETE CASCADE
                     );
                     CREATE INDEX IF NOT EXISTS IX_Flashcards_ResourceId ON Flashcards(ResourceId);
 
@@ -120,10 +127,11 @@ namespace KnowledgeLM.App
                         SsmlContent TEXT,
                         DurationTicks INTEGER NOT NULL DEFAULT 0,
                         CreatedAt TEXT NOT NULL,
-                        FOREIGN KEY (ResourceId) REFERENCES Resources(Id)
+                        FOREIGN KEY (ResourceId) REFERENCES Resources(Id) ON DELETE CASCADE
                     );
                     CREATE INDEX IF NOT EXISTS IX_Podcasts_ResourceId ON Podcasts(ResourceId);
                 ");
+                context.Database.ExecuteSqlRaw("PRAGMA foreign_keys = ON;");
             }
 
             return app;

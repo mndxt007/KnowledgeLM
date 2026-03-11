@@ -1,10 +1,10 @@
 @using Markdig
 
-<div class="harvest-chat-container">
+<div class="harvest-chat-container pt-1">
     @* ── Header ── *@
     <div class="harvest-chat-header">
         <div class="harvest-chat-header-title">
-            <FluentIcon Value="@(new Icons.Regular.Size24.ChatSparkle())" Color="@Color.Accent" />
+            <FluentIcon Value="@(new Icons.Regular.Size24.ChatSparkle())" Color="Color.Custom" CustomColor="var(--foreground-on-accent-rest, #ffffff)" />
             <span>Harvest Chat</span>
             @if (AgentWorking)
             {
@@ -109,7 +109,7 @@
         {
             <div class="harvest-chat-empty">
                 <FluentIcon Value="@(new Icons.Regular.Size48.ChatSparkle())" Color="@Color.Accent" />
-                <p>Select a resource and ask questions about your notes</p>
+                <FluentLabel>Select a resource and ask questions about your notes</FluentLabel>
             </div>
         }
         else

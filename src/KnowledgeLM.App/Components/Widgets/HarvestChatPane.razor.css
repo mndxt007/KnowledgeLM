@@ -11,18 +11,23 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 8px 12px;
-    background: linear-gradient(135deg, var(--accent-fill-rest), var(--accent-fill-hover));
-    color: var(--foreground-on-accent-rest);
-    min-height: 40px;
+    padding: 0 18px;
+    height: 52px;
+    background: linear-gradient(135deg, var(--accent-fill-rest) 0%, #107c10 100%);
+    color: var(--foreground-on-accent-rest, #ffffff);
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    user-select: none;
 }
 
 .harvest-chat-header-title {
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-weight: 600;
-    font-size: var(--type-ramp-base-font-size);
+    gap: 10px;
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--foreground-on-accent-rest, #ffffff);
 }
 
 .harvest-chat-header-actions {
@@ -41,6 +46,7 @@
 
 .harvest-action-bar {
     display: flex;
+    justify-content: center;
     gap: 8px;
     padding: 6px 12px;
     background: var(--neutral-layer-2);

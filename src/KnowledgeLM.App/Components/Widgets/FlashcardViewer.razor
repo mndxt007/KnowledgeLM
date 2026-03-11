@@ -1,3 +1,5 @@
+@using Markdig
+
 @if (Flashcards is not null && Flashcards.Count > 0)
 {
     <div class="flashcard-viewer">
@@ -10,11 +12,11 @@
         <div class="flashcard-card @(isFlipped ? "flashcard-card--flipped" : "")" @onclick="ToggleFlip">
             <div class="flashcard-front">
                 <FluentIcon Value="@(new Icons.Regular.Size16.QuestionCircle())" Color="@Color.Accent" />
-                <p>@Flashcards[currentIndex].Question</p>
+                <div class="flashcard-markdown">@((MarkupString)RenderMarkdown(Flashcards[currentIndex].Question))</div>
             </div>
             <div class="flashcard-back">
                 <FluentIcon Value="@(new Icons.Regular.Size16.Checkmark())" Color="@Color.Success" />
-                <p>@Flashcards[currentIndex].Answer</p>
+                <div class="flashcard-markdown">@((MarkupString)RenderMarkdown(Flashcards[currentIndex].Answer))</div>
             </div>
         </div>
 
