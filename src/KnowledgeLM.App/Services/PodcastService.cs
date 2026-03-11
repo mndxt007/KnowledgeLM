@@ -19,6 +19,7 @@ public class PodcastService
     private readonly IDbContextFactory<NotesContext> _contextFactory;
     private readonly NotesCRUDService _notesCrudService;
     private readonly ILogger<PodcastService> _logger;
+    private readonly AppNotificationService _notifications;
     private readonly string? _speechKey;
     private readonly string? _speechRegion;
 
@@ -26,11 +27,13 @@ public class PodcastService
         IDbContextFactory<NotesContext> contextFactory,
         NotesCRUDService notesCrudService,
         ILogger<PodcastService> logger,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        AppNotificationService notifications)
     {
         _contextFactory = contextFactory;
         _notesCrudService = notesCrudService;
         _logger = logger;
+        _notifications = notifications;
         _speechKey = configuration["AzureSpeech:Key"];
         _speechRegion = configuration["AzureSpeech:Region"];
     }
@@ -67,8 +70,11 @@ public class PodcastService
         if (string.IsNullOrWhiteSpace(_speechKey) || string.IsNullOrWhiteSpace(_speechRegion))
         {
             _logger.LogWarning("Azure Speech Service credentials not configured.");
-            return "Error: Azure Speech Service credentials not configured. Set AZURE_SPEECH_KEY and AZURE_SPEECH_REGION environment variables.";
+            _notifications.NotifyError("Azure Speech Service credentials not configured.");
+            return "Error: Azure Speech Service credentials not configured.";
         }
+
+        _notifications.NotifyProgress("Generating podcast audio…");
 
         try
         {
@@ -87,12 +93,14 @@ public class PodcastService
             if (result.Reason == ResultReason.SynthesizingAudioCompleted)
             {
                 _logger.LogInformation("Podcast audio generated successfully at {Path}", outputPath);
+                _notifications.NotifySuccess("Podcast audio generated successfully.");
                 return outputPath;
             }
             else if (result.Reason == ResultReason.Canceled)
             {
                 var cancellation = SpeechSynthesisCancellationDetails.FromResult(result);
                 _logger.LogError("Speech synthesis canceled: {Reason} - {Details}", cancellation.Reason, cancellation.ErrorDetails);
+                _notifications.NotifyError($"Speech synthesis canceled: {cancellation.ErrorDetails}");
                 return $"Error: Speech synthesis canceled - {cancellation.ErrorDetails}";
             }
 
@@ -101,6 +109,7 @@ public class PodcastService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to generate podcast audio.");
+            _notifications.NotifyError($"Podcast generation failed: {ex.Message}");
             return $"Error: {ex.Message}";
         }
     }
