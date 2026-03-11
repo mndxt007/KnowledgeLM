@@ -1,3 +1,4 @@
+using KnowledgeLM.App.Models.AI;
 using KnowledgeLM.App.Models.Notes;
 using Microsoft.EntityFrameworkCore;
 using Resource = KnowledgeLM.App.Models.Notes.Resource;
@@ -13,6 +14,9 @@ public class NotesContext : DbContext
     public DbSet<Course> Courses => Set<Course>();
     public DbSet<Section> Sections => Set<Section>();
     public DbSet<Resource> Resources => Set<Resource>();
+    public DbSet<VectorizedResource> VectorizedResources => Set<VectorizedResource>();
+    public DbSet<Flashcard> Flashcards => Set<Flashcard>();
+    public DbSet<Podcast> Podcasts => Set<Podcast>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -47,6 +51,38 @@ public class NotesContext : DbContext
                   .HasConversion<string>()
                   .HasMaxLength(50);
         });
+
+        // VectorizedResource configuration
+        modelBuilder.Entity<VectorizedResource>(entity =>
+        {
+            entity.HasIndex(v => v.ResourceId).IsUnique();
+            entity.Property(v => v.Status).HasMaxLength(50);
+            entity.HasOne(v => v.Resource)
+                  .WithMany()
+                  .HasForeignKey(v => v.ResourceId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Flashcard configuration
+        modelBuilder.Entity<Flashcard>(entity =>
+        {
+            entity.HasIndex(f => f.ResourceId);
+            entity.HasOne(f => f.Resource)
+                  .WithMany()
+                  .HasForeignKey(f => f.ResourceId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Podcast configuration
+        modelBuilder.Entity<Podcast>(entity =>
+        {
+            entity.HasIndex(p => p.ResourceId);
+            entity.Ignore(p => p.Duration);
+            entity.HasOne(p => p.Resource)
+                  .WithMany()
+                  .HasForeignKey(p => p.ResourceId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
     }
 
     public override int SaveChanges()
@@ -76,6 +112,24 @@ public class NotesContext : DbContext
             {
                 entry.Entity.LastModified = now;
             }
+        }
+
+        foreach (var entry in ChangeTracker.Entries<Flashcard>())
+        {
+            if (entry.State == EntityState.Added)
+                entry.Entity.CreatedAt = now;
+        }
+
+        foreach (var entry in ChangeTracker.Entries<Podcast>())
+        {
+            if (entry.State == EntityState.Added)
+                entry.Entity.CreatedAt = now;
+        }
+
+        foreach (var entry in ChangeTracker.Entries<VectorizedResource>())
+        {
+            if (entry.State == EntityState.Added)
+                entry.Entity.VectorizedAt = now;
         }
     }
 }

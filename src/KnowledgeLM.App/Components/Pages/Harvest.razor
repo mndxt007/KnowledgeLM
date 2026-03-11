@@ -1,0 +1,42 @@
+@page "/Harvest"
+@using KnowledgeLM.App.Services
+@inject AppNotificationService NotificationService
+@inject IToastService ToastService
+@implements IDisposable
+
+<FluentMultiSplitter Orientation="Orientation.Horizontal" Style="height: 100%;">
+    <FluentMultiSplitterPane Min="20%" Max="30%" Size="25%" Style="overflow-y: auto;">
+        <HarvestNotesPane />
+    </FluentMultiSplitterPane>
+    <FluentMultiSplitterPane Collapsible="true" Size="75%" Min="60%" Max="80%">
+        <HarvestChatPane />
+    </FluentMultiSplitterPane>
+</FluentMultiSplitter>
+
+@code {
+    protected override void OnInitialized()
+    {
+        NotificationService.OnNotification += HandleNotification;
+    }
+
+    private void HandleNotification(AppNotification notification)
+    {
+        InvokeAsync(() =>
+        {
+            var intent = notification.Type switch
+            {
+                AppNotificationType.Success => ToastIntent.Success,
+                AppNotificationType.Error => ToastIntent.Error,
+                AppNotificationType.Progress => ToastIntent.Progress,
+                AppNotificationType.Info => ToastIntent.Info,
+                _ => ToastIntent.Info
+            };
+            ToastService.ShowToast(intent, notification.Message);
+        });
+    }
+
+    public void Dispose()
+    {
+        NotificationService.OnNotification -= HandleNotification;
+    }
+}

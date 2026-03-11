@@ -1,0 +1,31 @@
+@if (Podcast is not null && !string.IsNullOrWhiteSpace(Podcast.AudioFilePath))
+{
+    <div class="podcast-player">
+        <div class="podcast-player-header">
+            <FluentIcon Value="@(new Icons.Regular.Size20.Headphones())" Color="@Color.Accent" />
+            <FluentLabel Typo="Typography.Body" Weight="FontWeight.Bold">@Podcast.Title</FluentLabel>
+            <FluentButton Appearance="Appearance.Stealth"
+                          IconStart="@(new Icons.Regular.Size16.Dismiss())"
+                          OnClick="Close"
+                          Title="Close player"
+                          Style="margin-left: auto;" />
+        </div>
+
+        <div class="podcast-player-controls">
+            <FluentButton Appearance="Appearance.Accent"
+                          IconStart="@(isPlaying ? new Icons.Regular.Size20.Pause() : new Icons.Regular.Size20.Play())"
+                          OnClick="TogglePlayPause"
+                          Title="@(isPlaying ? "Pause" : "Play")" />
+
+            <div class="podcast-player-progress">
+                <FluentSlider TValue="double" Min="0" Max="@totalDuration" Step="1"
+                              Value="@currentTime"
+                              ValueChanged="OnSeek"
+                              Style="flex: 1;" />
+                <span class="podcast-player-time">
+                    @FormatTime(currentTime) / @FormatTime(totalDuration)
+                </span>
+            </div>
+        </div>
+    </div>
+}
