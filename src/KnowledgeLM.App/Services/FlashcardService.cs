@@ -16,15 +16,18 @@ public class FlashcardService
     private readonly IDbContextFactory<NotesContext> _contextFactory;
     private readonly NotesCRUDService _notesCrudService;
     private readonly ILogger<FlashcardService> _logger;
+    private readonly AppNotificationService _notifications;
 
     public FlashcardService(
         IDbContextFactory<NotesContext> contextFactory,
         NotesCRUDService notesCrudService,
-        ILogger<FlashcardService> logger)
+        ILogger<FlashcardService> logger,
+        AppNotificationService notifications)
     {
         _contextFactory = contextFactory;
         _notesCrudService = notesCrudService;
         _logger = logger;
+        _notifications = notifications;
     }
 
     /// <summary>
@@ -91,11 +94,13 @@ public class FlashcardService
 
             await context.SaveChangesAsync();
             _logger.LogInformation("Saved {Count} flashcards for resource {ResourceId}.", items.Count, resourceId);
+            _notifications.NotifySuccess($"Saved {items.Count} flashcards.");
             return items.Count;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to save flashcards for resource {ResourceId}.", resourceId);
+            _notifications.NotifyError($"Failed to save flashcards: {ex.Message}");
             return 0;
         }
     }

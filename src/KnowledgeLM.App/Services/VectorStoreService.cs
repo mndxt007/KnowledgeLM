@@ -19,6 +19,7 @@ public class VectorStoreService
     private readonly NotesCRUDService _notesCrudService;
     private readonly IEmbeddingGenerator<string, Embedding<float>>? _embeddingGenerator;
     private readonly ILogger<VectorStoreService> _logger;
+    private readonly AppNotificationService _notifications;
     private readonly string _vectorDbConnectionString;
     private const string CollectionName = "note_chunks";
 
@@ -26,12 +27,14 @@ public class VectorStoreService
         IDbContextFactory<NotesContext> contextFactory,
         NotesCRUDService notesCrudService,
         ILogger<VectorStoreService> logger,
+        AppNotificationService notifications,
         IEmbeddingGenerator<string, Embedding<float>>? embeddingGenerator = null)
     {
         _contextFactory = contextFactory;
         _notesCrudService = notesCrudService;
         _embeddingGenerator = embeddingGenerator;
         _logger = logger;
+        _notifications = notifications;
         var vectorDbPath = Path.Combine(FileSystem.AppDataDirectory, "knowledgelm_vectors.db");
         _vectorDbConnectionString = $"Data Source={vectorDbPath}";
     }
@@ -113,8 +116,10 @@ public class VectorStoreService
     {
         if (_embeddingGenerator is null)
         {
+            var msg = "No embedding model configured. Check Azure OpenAI settings.";
             _logger.LogWarning("No embedding generator configured. Skipping vectorization for resource {ResourceId}.", resourceId);
-            return (false, "No embedding model configured. Check Azure OpenAI settings.");
+            _notifications.NotifyError(msg);
+            return (false, msg);
         }
 
         var resource = await _notesCrudService.GetResourceByIdAsync(resourceId);
@@ -128,6 +133,7 @@ public class VectorStoreService
         if (breadcrumb is null) return (false, "Could not resolve resource breadcrumb.");
 
         await UpsertVectorizationRecord(resourceId, "Processing", 0);
+        _notifications.NotifyProgress($"Vectorizing \"{resource.Name}\"…");
 
         try
         {
@@ -178,12 +184,14 @@ public class VectorStoreService
 
             await UpsertVectorizationRecord(resourceId, "Completed", noteChunks.Count);
             _logger.LogInformation("Vectorized resource {ResourceId} with {ChunkCount} chunks.", resourceId, noteChunks.Count);
+            _notifications.NotifySuccess($"Vectorized \"{resource.Name}\" — {noteChunks.Count} chunks.");
             return (true, null);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to vectorize resource {ResourceId}.", resourceId);
             await UpsertVectorizationRecord(resourceId, "Failed", 0);
+            _notifications.NotifyError($"Vectorization failed for \"{resource.Name}\": {ex.Message}");
             return (false, ex.Message);
         }
     }

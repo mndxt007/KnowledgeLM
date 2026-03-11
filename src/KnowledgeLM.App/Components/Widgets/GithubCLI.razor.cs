@@ -154,7 +154,7 @@ namespace KnowledgeLM.App.Components.Widgets
                                 cardText.Add(new()
                                 {
                                     EventType = evt.Type,
-                                    Message = assistantMessageEvent.Data.Content ?? string.Empty,
+                                    Message = String.IsNullOrWhiteSpace(assistantMessageEvent.Data.Content) ? "......." : assistantMessageEvent.Data.Content,
                                     ReasoningText = assistantMessageEvent.Data.ReasoningText ?? string.Empty
                                 });
                                 StateHasChanged();

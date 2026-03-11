@@ -2,7 +2,6 @@ using KnowledgeLM.App.Models.Notes.DTOs;
 using KnowledgeLM.App.Services;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.Logging;
-using Microsoft.FluentUI.AspNetCore.Components;
 
 namespace KnowledgeLM.App.Components.Widgets;
 
@@ -15,7 +14,6 @@ public partial class HarvestNotesPane : IDisposable
     [Inject] private FlashcardService FlashcardService { get; set; } = default!;
     [Inject] private PodcastService PodcastService { get; set; } = default!;
     [Inject] private ILogger<HarvestNotesPane> Logger { get; set; } = default!;
-    [Inject] private IToastService ToastService { get; set; } = default!;
 
     private EventCallback<ResourceResponse> _callback;
 
@@ -41,19 +39,10 @@ public partial class HarvestNotesPane : IDisposable
         if (!isVectorized)
         {
             Logger.LogInformation("Starting vectorization for resource {Id}", resource.Id);
-            ToastService.ShowProgress($"Vectorizing \"{resource.Name}\"…");
 
             _ = InvokeAsync(async () =>
             {
-                var (success, message) = await VectorStoreService.VectorizeResourceAsync(resource.Id);
-                if (success)
-                {
-                    ToastService.ShowSuccess($"Vectorized \"{resource.Name}\" successfully.");
-                }
-                else
-                {
-                    ToastService.ShowError($"Vectorization failed: {message}");
-                }
+                await VectorStoreService.VectorizeResourceAsync(resource.Id);
                 StateHasChanged();
             });
         }

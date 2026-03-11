@@ -64,6 +64,7 @@ namespace KnowledgeLM.App
             builder.Services.AddScoped<PodcastService>();
             builder.Services.AddSingleton<StateService>();
             builder.Services.AddSingleton<HarvestStateService>();
+            builder.Services.AddSingleton<AppNotificationService>();
 
 #if DEBUG
             builder.Services.AddBlazorWebViewDeveloperTools();
