@@ -182,7 +182,7 @@ style: |
 
 <br/>
 
-*Hackathon Demo · March 2026*
+*March 2026*
 
 ---
 
@@ -270,25 +270,7 @@ Agent navigates courses **autonomously**
 </div>
 <div>
 
-```mermaid
-sequenceDiagram
-    actor User
-    participant Agent as Copilot Agent
-    participant Browser as Playwright
-    participant DB as Notes DB
-
-    User->>Agent: Add source URL
-    Agent->>Browser: Navigate & authenticate
-    Agent->>Browser: Snapshot page structure
-    Agent->>DB: Create course + sections
-    loop Each section
-        Agent->>Browser: Navigate to section
-        Agent->>Browser: Screenshot slides
-        Agent->>Agent: Generate markdown
-        Agent->>DB: Save resources
-    end
-    Agent-->>User: ✅ Notes ready!
-```
+![w:560](pitch_resources/agent_capture.svg)
 
 </div>
 </div>
@@ -315,29 +297,7 @@ sequenceDiagram
 </div>
 <div>
 
-```mermaid
-graph TB
-    subgraph Editor["Monaco Markdown Editor"]
-        Split["Split Pane View"]
-        TB2["Formatting Toolbar"]
-        Preview["Live HTML Preview"]
-    end
-
-    subgraph Tree["Notes TreeView"]
-        C["📁 Course"]
-        S["  📂 Section"]
-        R["    📄 Resource.md"]
-        I["    🖼️ Screenshot.png"]
-    end
-
-    subgraph Storage["Local Storage"]
-        SQLite["SQLite DB<br/>(metadata)"]
-        FS["File System<br/>(.md + images)"]
-    end
-
-    Tree --> Editor
-    Editor --> Storage
-```
+![w:560](pitch_resources/agent_organize.svg)
 
 </div>
 </div>
@@ -363,23 +323,7 @@ Auto-generated **Q&A cards** for spaced repetition and self-assessment
 </div>
 <div>
 
-```mermaid
-flowchart TB
-    Notes["📝 Your Notes"]
-
-    Notes --> Vec["Vectorize<br/>(Azure OpenAI<br/>Embeddings)"]
-    Vec --> VecDB["SqliteVec<br/>Vector Store"]
-
-    Notes --> FC["Generate<br/>Flashcards"]
-    FC --> FCView["🃏 Flip Cards<br/>Study UI"]
-
-    Notes --> Pod["Generate<br/>SSML Script"]
-    Pod --> TTS["Azure Speech<br/>TTS Engine"]
-    TTS --> Audio["🎙️ Podcast<br/>Player"]
-
-    VecDB --> RAG["Semantic<br/>Search"]
-    RAG --> Chat["💬 Q&A Chat<br/>with Citations"]
-```
+![w:400](pitch_resources/agent_harvest.svg)
 
 </div>
 </div>
@@ -390,26 +334,7 @@ flowchart TB
 
 ## The AI Agent Is the Brain
 
-```mermaid
-graph TB
-    User["👤 User"] --> UI["🖥️ MAUI Blazor UI"]
-
-    UI --> CopilotSDK["🤖 GitHub Copilot SDK<br/><i>Orchestrator</i>"]
-
-    CopilotSDK --> SK["Semantic Kernel<br/><i>Plugin Host</i>"]
-
-    SK --> NM["📚 NotesManagement<br/>14 kernel functions<br/><i>CRUD operations</i>"]
-    SK --> RAG2["🔍 RAGSearch<br/>Vector similarity<br/><i>Semantic search</i>"]
-    SK --> FC2["🃏 Flashcards<br/>Generate & save<br/><i>Study cards</i>"]
-    SK --> POD2["🎙️ Podcasts<br/>SSML + TTS<br/><i>Audio generation</i>"]
-
-    CopilotSDK --> MCP["🌐 Playwright MCP<br/><i>Browser Automation</i>"]
-    MCP --> Edge["Microsoft Edge"]
-
-    NM --> DB["💾 SQLite + File System"]
-    RAG2 --> VDB["🧮 SqliteVec + Azure OpenAI"]
-    POD2 --> AZ["☁️ Azure Speech Service"]
-```
+![w:600](pitch_resources/agent_first_architecture.svg)
 
 > The agent **reasons, plans, and invokes** registered skills. Custom code only exists for capabilities the agent + Playwright can't provide.
 
@@ -419,48 +344,7 @@ graph TB
 
 ## System Component Diagram
 
-```mermaid
-graph LR
-    subgraph UI["UI Layer"]
-        Home["Home Page<br/><i>3-pane workspace</i>"]
-        Harvest["Harvest Page<br/><i>Study assistant</i>"]
-    end
-
-    subgraph Agent["AI Layer"]
-        Copilot["Copilot SDK"]
-        Kernel["Semantic Kernel"]
-        PW["Playwright MCP"]
-        Embed["Azure OpenAI<br/>Embeddings"]
-        Speech["Azure Speech"]
-    end
-
-    subgraph Services["Service Layer"]
-        CRUD["NotesCRUD"]
-        Vector["VectorStore"]
-        RAG3["RAGSearch"]
-        Flash["Flashcard"]
-        Pod["Podcast"]
-        State["StateService"]
-    end
-
-    subgraph Data["Data Layer"]
-        EF["EF Core<br/>SQLite"]
-        SVec["SqliteVec"]
-        FS2["File System<br/>.md + images"]
-    end
-
-    Home --> Copilot
-    Harvest --> Copilot
-    Copilot --> Kernel --> Services
-    Copilot --> PW
-    Vector --> Embed
-    Pod --> Speech
-    CRUD --> EF & FS2
-    Vector --> SVec
-    Flash --> EF
-    Pod --> EF
-    CRUD --> State --> UI
-```
+![w:800](pitch_resources/architecture_deep_dive.svg)
 
 ---
 
@@ -507,134 +391,50 @@ graph LR
 
 ## Solving Real Problems at Scale
 
-<div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-top: 20px;">
-
-<div class="card" style="text-align: center;">
-<div class="stat">70–90%</div>
-<div class="stat-label">knowledge forgotten in a week</div>
-<div style="color: var(--color-accent); margin-top: 8px;">→ Structured notes + spaced retrieval via quizzes and RAG Q&A</div>
-</div>
-
-<div class="card" style="text-align: center;">
-<div class="stat">1.8 hrs</div>
-<div class="stat-label">per day lost searching</div>
-<div style="color: var(--color-accent); margin-top: 8px;">→ Centralized notebooks with semantic search</div>
-</div>
-
-<div class="card" style="text-align: center;">
-<div class="stat">$31.5B</div>
-<div class="stat-label">annual enterprise knowledge loss</div>
-<div style="color: var(--color-accent); margin-top: 8px;">→ Persistent knowledge base that survives transitions</div>
-</div>
-
-</div>
-
-<div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-top: 16px;">
-
-<div class="card" style="text-align: center;">
-<div class="stat">Zero</div>
-<div class="stat-label">cognitive load on learner</div>
-<div style="color: var(--color-accent); margin-top: 8px;">→ Agent captures notes autonomously</div>
-</div>
-
-<div class="card" style="text-align: center;">
-<div class="stat">4–6</div>
-<div class="stat-label">fragmented platforms unified</div>
-<div style="color: var(--color-accent); margin-top: 8px;">→ Single tool for all content sources</div>
-</div>
-
-<div class="card" style="text-align: center;">
-<div class="stat">Active</div>
-<div class="stat-label">learning, not passive consumption</div>
-<div style="color: var(--color-accent); margin-top: 8px;">→ Quizzes, podcasts, and conversational review</div>
-</div>
-
-</div>
-
----
-
-# Why LearnLoom Matters
-
-## AI-Forward Engineering
-
 <div class="columns">
 <div>
 
-### 🏗️ Architecture Philosophy
+<div class="card" style="text-align: center; padding: 12px;">
+<div class="stat" style="font-size: 28px;">70–90%</div>
+<div class="stat-label">knowledge forgotten in a week</div>
+<div style="color: var(--color-accent); font-size: 16px;">→ Structured notes + spaced retrieval</div>
+</div>
 
-The AI agent **isn't a feature bolted on** — it's the **core orchestrator**.
+<div class="card" style="text-align: center; padding: 12px; margin-top: 10px;">
+<div class="stat" style="font-size: 28px;">1.8 hrs</div>
+<div class="stat-label">per day lost searching</div>
+<div style="color: var(--color-accent); font-size: 16px;">→ Centralized notebooks + semantic search</div>
+</div>
 
-- Agent **reasons and plans** the capture workflow
-- Agent **invokes tools** (Playwright, CRUD, Search)
-- Agent **decides** what to capture and how to structure
-- Custom code only where agent + Playwright can't reach
-
-### 🎯 Built With AI, For AI-Assisted Learning
-
-Every interaction — from capture to quiz to podcast — flows through the intelligent agent.
+<div class="card" style="text-align: center; padding: 12px; margin-top: 10px;">
+<div class="stat" style="font-size: 28px;">$31.5B</div>
+<div class="stat-label">annual enterprise knowledge loss</div>
+<div style="color: var(--color-accent); font-size: 16px;">→ Persistent knowledgeBase and Seach</div>
+</div>
 
 </div>
 <div>
 
-```mermaid
-graph TB
-    subgraph Traditional["Traditional Approach"]
-        T1["Hard-coded scraper"]
-        T2["Manual note templates"]
-        T3["Static quiz builder"]
-        T4["Separate tools"]
-    end
+<div class="card" style="text-align: center; padding: 12px;">
+<div class="stat" style="font-size: 28px;">Zero</div>
+<div class="stat-label">cognitive load on learner</div>
+<div style="color: var(--color-accent); font-size: 16px;">→ Agent captures notes autonomously</div>
+</div>
 
-    subgraph LearnLoom["LearnLoom Approach"]
-        A["🤖 Copilot Agent"]
-        A --> S1["Adaptive navigation"]
-        A --> S2["Intelligent note structure"]
-        A --> S3["Context-aware Q&A"]
-        A --> S4["Unified experience"]
-    end
+<div class="card" style="text-align: center; padding: 12px; margin-top: 10px;">
+<div class="stat" style="font-size: 28px;">4–6</div>
+<div class="stat-label">fragmented platforms unified</div>
+<div style="color: var(--color-accent); font-size: 16px;">→ Single tool for all content sources</div>
+</div>
 
-    style Traditional fill:#1a1a2e,stroke:#30363d
-    style LearnLoom fill:#0d2137,stroke:#58a6ff
-```
+<div class="card" style="text-align: center; padding: 12px; margin-top: 10px;">
+<div class="stat" style="font-size: 28px;">Active</div>
+<div class="stat-label">learning, not passive consumption</div>
+<div style="color: var(--color-accent); font-size: 16px;">→ Quizzes, podcasts, conversational review</div>
+</div>
 
 </div>
 </div>
-
----
-
-# Data Flow
-
-## End-to-End Knowledge Pipeline
-
-```mermaid
-flowchart LR
-    subgraph Capture["📥 CAPTURE"]
-        URL["Source URL"]
-        URL --> PW2["Playwright MCP<br/>Navigate + Auth"]
-        PW2 --> SS["Screenshots"]
-        PW2 --> Text["Text Extraction"]
-    end
-
-    subgraph Organize["📝 ORGANIZE"]
-        SS --> MD2["Markdown Notes"]
-        Text --> MD2
-        MD2 --> DB2["SQLite<br/>(Course/Section/Resource)"]
-        MD2 --> FS3["Disk<br/>(.md + .png)"]
-    end
-
-    subgraph Harvest["🧠 HARVEST"]
-        MD2 --> Chunk["Chunk + Embed"]
-        Chunk --> VecDB2["Vector DB"]
-        VecDB2 --> Search["Semantic Search"]
-        Search --> QA2["💬 Q&A Chat"]
-        MD2 --> Cards["🃏 Flashcards"]
-        MD2 --> Podcast2["🎙️ Podcast"]
-    end
-
-    style Capture fill:#1a2332,stroke:#58a6ff
-    style Organize fill:#1a2a1a,stroke:#7ee787
-    style Harvest fill:#2a1a1a,stroke:#f0883e
-```
 
 ---
 
