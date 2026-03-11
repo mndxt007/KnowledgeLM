@@ -84,6 +84,7 @@ public partial class HarvestChatPane : IDisposable
             """;
 
         await CopilotService.CreateSessionAsync(systemPrompt, onEvent: HandleSessionEvent);
+        // This can be an issue and not real representation of state
         SessionStatus = FluentColor.Success;
         await InvokeAsync(StateHasChanged);
     }

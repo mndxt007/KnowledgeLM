@@ -107,24 +107,25 @@ public class VectorStoreService
 
     /// <summary>
     /// Vectorize a resource: chunk its markdown content, generate embeddings, and store in vector DB.
+    /// Returns (success, errorMessage). On success errorMessage is null.
     /// </summary>
-    public async Task VectorizeResourceAsync(int resourceId)
+    public async Task<(bool Success, string? Message)> VectorizeResourceAsync(int resourceId)
     {
         if (_embeddingGenerator is null)
         {
             _logger.LogWarning("No embedding generator configured. Skipping vectorization for resource {ResourceId}.", resourceId);
-            return;
+            return (false, "No embedding model configured. Check Azure OpenAI settings.");
         }
 
         var resource = await _notesCrudService.GetResourceByIdAsync(resourceId);
         if (resource is null)
         {
             _logger.LogWarning("Resource {ResourceId} not found.", resourceId);
-            return;
+            return (false, $"Resource {resourceId} not found.");
         }
 
         var breadcrumb = await _notesCrudService.GetBreadcrumbAsync(resourceId);
-        if (breadcrumb is null) return;
+        if (breadcrumb is null) return (false, "Could not resolve resource breadcrumb.");
 
         await UpsertVectorizationRecord(resourceId, "Processing", 0);
 
@@ -135,7 +136,7 @@ public class VectorStoreService
             {
                 _logger.LogWarning("Resource file not found at {Path}", filePath);
                 await UpsertVectorizationRecord(resourceId, "Failed", 0);
-                return;
+                return (false, $"Resource file not found at: {filePath}");
             }
 
             var content = await File.ReadAllTextAsync(filePath);
@@ -144,7 +145,7 @@ public class VectorStoreService
             if (chunks.Count == 0)
             {
                 await UpsertVectorizationRecord(resourceId, "Completed", 0);
-                return;
+                return (true, null);
             }
 
             var embeddings = await _embeddingGenerator.GenerateAsync(chunks);
@@ -177,11 +178,13 @@ public class VectorStoreService
 
             await UpsertVectorizationRecord(resourceId, "Completed", noteChunks.Count);
             _logger.LogInformation("Vectorized resource {ResourceId} with {ChunkCount} chunks.", resourceId, noteChunks.Count);
+            return (true, null);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to vectorize resource {ResourceId}.", resourceId);
             await UpsertVectorizationRecord(resourceId, "Failed", 0);
+            return (false, ex.Message);
         }
     }
 
