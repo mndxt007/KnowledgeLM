@@ -1,14 +1,13 @@
-﻿using KnowledgeLM.App.Data;
+﻿using KnowledgeLM.MonacoEditor.Extensions;
+using KnowledgeLM.App.Data;
 using KnowledgeLM.App.Services;
-using KnowledgeLM.MonacoEditor.Extensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.FluentUI.AspNetCore.Components;
 using Microsoft.SemanticKernel;
+using Microsoft.Extensions.Hosting;
 using Plugin.Maui.Audio;
-using System.Reflection;
 
 namespace KnowledgeLM.App
 {
@@ -25,7 +24,19 @@ namespace KnowledgeLM.App
                 });
 
             // Load configuration from appsettings files
-            builder.ConfigureAppSettings();
+            var assembly = typeof(MauiProgram).Assembly;
+            using var appSettingsStream = assembly.GetManifestResourceStream("KnowledgeLM.App.appsettings.json");
+            using var appSettingsDevStream = assembly.GetManifestResourceStream("KnowledgeLM.App.appsettings.development.json");
+
+            var configBuilder = new ConfigurationBuilder();
+            if (appSettingsStream is not null)
+                configBuilder.AddJsonStream(appSettingsStream);
+            if (appSettingsDevStream is not null)
+                configBuilder.AddJsonStream(appSettingsDevStream);
+            configBuilder.AddEnvironmentVariables();
+
+            var configuration = configBuilder.Build();
+            builder.Configuration.AddConfiguration(configuration);
 
             builder.Services.AddMauiBlazorWebView();
             builder.Services.AddMonacoEditorPack();
@@ -64,7 +75,6 @@ namespace KnowledgeLM.App
             builder.Services.AddScoped<PodcastService>();
             builder.Services.AddSingleton<StateService>();
             builder.Services.AddSingleton<HarvestStateService>();
-            builder.Services.AddSingleton<AppNotificationService>();
 
 #if DEBUG
             builder.Services.AddBlazorWebViewDeveloperTools();
@@ -81,7 +91,6 @@ namespace KnowledgeLM.App
                 context.Database.EnsureCreated();
 
                 // Ensure AI tables exist (handles case where DB was created before AI entities were added)
-                context.Database.ExecuteSqlRaw("PRAGMA foreign_keys = ON;");
                 context.Database.ExecuteSqlRaw(@"
                     CREATE TABLE IF NOT EXISTS VectorizedResources (
                         Id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -89,7 +98,7 @@ namespace KnowledgeLM.App
                         VectorizedAt TEXT NOT NULL,
                         ChunkCount INTEGER NOT NULL DEFAULT 0,
                         Status TEXT NOT NULL DEFAULT 'Pending',
-                        FOREIGN KEY (ResourceId) REFERENCES Resources(Id) ON DELETE CASCADE
+                        FOREIGN KEY (ResourceId) REFERENCES Resources(Id)
                     );
                     CREATE UNIQUE INDEX IF NOT EXISTS IX_VectorizedResources_ResourceId ON VectorizedResources(ResourceId);
 
@@ -99,7 +108,7 @@ namespace KnowledgeLM.App
                         Question TEXT NOT NULL,
                         Answer TEXT NOT NULL,
                         CreatedAt TEXT NOT NULL,
-                        FOREIGN KEY (ResourceId) REFERENCES Resources(Id) ON DELETE CASCADE
+                        FOREIGN KEY (ResourceId) REFERENCES Resources(Id)
                     );
                     CREATE INDEX IF NOT EXISTS IX_Flashcards_ResourceId ON Flashcards(ResourceId);
 
@@ -111,27 +120,13 @@ namespace KnowledgeLM.App
                         SsmlContent TEXT,
                         DurationTicks INTEGER NOT NULL DEFAULT 0,
                         CreatedAt TEXT NOT NULL,
-                        FOREIGN KEY (ResourceId) REFERENCES Resources(Id) ON DELETE CASCADE
+                        FOREIGN KEY (ResourceId) REFERENCES Resources(Id)
                     );
                     CREATE INDEX IF NOT EXISTS IX_Podcasts_ResourceId ON Podcasts(ResourceId);
                 ");
             }
 
             return app;
-        }
-
-        private static void ConfigureAppSettings(this MauiAppBuilder builder)
-        {
-            var assemblyName = Assembly.GetExecutingAssembly().GetName().Name;
-            var baseConfigFileName = $"{assemblyName}.appsettings.json";
-            var devConfigFileName = $"{assemblyName}.appsettings.development.json";
-            var assembly = Assembly.GetExecutingAssembly();
-
-            using var baseStream = assembly.GetManifestResourceStream(baseConfigFileName);
-            if (baseStream != null) builder.Configuration.AddJsonStream(baseStream);
-
-            using var devStream = assembly.GetManifestResourceStream(devConfigFileName);
-            if (devStream != null) builder.Configuration.AddJsonStream(devStream);
         }
     }
 }

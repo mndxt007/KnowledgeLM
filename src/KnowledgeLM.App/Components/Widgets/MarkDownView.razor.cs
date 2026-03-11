@@ -22,7 +22,7 @@ namespace KnowledgeLM.App.Components.Widgets
         private string MarkDownContent = "# Hello World\nThis is a markdown content.";
         private EventCallback<ResourceResponse> _callback;
 
-        protected override async Task OnParametersSetAsync()
+        protected override async Task OnAfterRenderAsync(bool first)
         {
             if (ResourceId.HasValue && ResourceId != _loadedResourceId)
             {
