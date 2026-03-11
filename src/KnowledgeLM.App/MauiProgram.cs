@@ -1,13 +1,14 @@
-﻿using KnowledgeLM.MonacoEditor.Extensions;
-using KnowledgeLM.App.Data;
+﻿using KnowledgeLM.App.Data;
 using KnowledgeLM.App.Services;
+using KnowledgeLM.MonacoEditor.Extensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.FluentUI.AspNetCore.Components;
 using Microsoft.SemanticKernel;
-using Microsoft.Extensions.Hosting;
 using Plugin.Maui.Audio;
+using System.Reflection;
 
 namespace KnowledgeLM.App
 {
@@ -24,19 +25,7 @@ namespace KnowledgeLM.App
                 });
 
             // Load configuration from appsettings files
-            var assembly = typeof(MauiProgram).Assembly;
-            using var appSettingsStream = assembly.GetManifestResourceStream("KnowledgeLM.App.appsettings.json");
-            using var appSettingsDevStream = assembly.GetManifestResourceStream("KnowledgeLM.App.appsettings.development.json");
-
-            var configBuilder = new ConfigurationBuilder();
-            if (appSettingsStream is not null)
-                configBuilder.AddJsonStream(appSettingsStream);
-            if (appSettingsDevStream is not null)
-                configBuilder.AddJsonStream(appSettingsDevStream);
-            configBuilder.AddEnvironmentVariables();
-
-            var configuration = configBuilder.Build();
-            builder.Configuration.AddConfiguration(configuration);
+            builder.ConfigureAppSettings();
 
             builder.Services.AddMauiBlazorWebView();
             builder.Services.AddMonacoEditorPack();
@@ -91,13 +80,7 @@ namespace KnowledgeLM.App
                 context.Database.EnsureCreated();
 
                 // Ensure AI tables exist (handles case where DB was created before AI entities were added)
-                // Drop and recreate to ensure ON DELETE CASCADE is set
-                context.Database.ExecuteSqlRaw("PRAGMA foreign_keys = OFF;");
-                context.Database.ExecuteSqlRaw(@"
-                    DROP TABLE IF EXISTS VectorizedResources;
-                    DROP TABLE IF EXISTS Flashcards;
-                    DROP TABLE IF EXISTS Podcasts;
-                ");
+                context.Database.ExecuteSqlRaw("PRAGMA foreign_keys = ON;");
                 context.Database.ExecuteSqlRaw(@"
                     CREATE TABLE IF NOT EXISTS VectorizedResources (
                         Id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -131,10 +114,23 @@ namespace KnowledgeLM.App
                     );
                     CREATE INDEX IF NOT EXISTS IX_Podcasts_ResourceId ON Podcasts(ResourceId);
                 ");
-                context.Database.ExecuteSqlRaw("PRAGMA foreign_keys = ON;");
             }
 
             return app;
+        }
+
+        private static void ConfigureAppSettings(this MauiAppBuilder builder)
+        {
+            var assemblyName = Assembly.GetExecutingAssembly().GetName().Name;
+            var baseConfigFileName = $"{assemblyName}.appsettings.json";
+            var devConfigFileName = $"{assemblyName}.appsettings.development.json";
+            var assembly = Assembly.GetExecutingAssembly();
+
+            using var baseStream = assembly.GetManifestResourceStream(baseConfigFileName);
+            if (baseStream != null) builder.Configuration.AddJsonStream(baseStream);
+
+            using var devStream = assembly.GetManifestResourceStream(devConfigFileName);
+            if (devStream != null) builder.Configuration.AddJsonStream(devStream);
         }
     }
 }

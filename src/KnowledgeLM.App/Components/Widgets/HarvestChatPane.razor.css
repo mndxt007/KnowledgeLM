@@ -38,7 +38,8 @@
 .harvest-scope-bar {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: center;
+    gap: 8px;
     padding: 6px 12px;
     background: var(--neutral-layer-2);
     border-bottom: 1px solid var(--neutral-stroke-divider-rest);
@@ -111,7 +112,7 @@
     color: var(--foreground-on-accent-rest);
     border-radius: 12px 12px 2px 12px;
     padding: 8px 14px;
-    font-size: var(--type-ramp-minus-1-font-size);
+    font-size: var(--type-ramp-base-font-size);
 }
 
 .chat-bubble--assistant {
@@ -133,7 +134,7 @@
     background: var(--neutral-layer-3);
     border-radius: 2px 12px 12px 12px;
     padding: 8px 14px;
-    font-size: var(--type-ramp-minus-1-font-size);
+    font-size: var(--type-ramp-base-font-size);
 }
 
 .chat-bubble--tool {
@@ -141,7 +142,7 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: var(--type-ramp-minus-2-font-size);
+    font-size: var(--type-ramp-minus-1-font-size);
     color: var(--neutral-foreground-hint);
     padding: 2px 10px;
     background: var(--neutral-layer-2);
@@ -149,7 +150,7 @@
 }
 
 .reasoning-block {
-    font-size: var(--type-ramp-minus-2-font-size);
+    font-size: var(--type-ramp-minus-1-font-size);
     color: var(--neutral-foreground-hint);
     border: 1px solid var(--neutral-stroke-divider-rest);
     border-radius: 6px;
@@ -185,6 +186,28 @@
     padding: 8px;
     border-radius: 4px;
     overflow-x: auto;
+}
+
+.markdown-content h1 {
+    font-size: 1.25em;
+    margin: 0.4em 0;
+}
+
+.markdown-content h2 {
+    font-size: 1.15em;
+    margin: 0.35em 0;
+}
+
+.markdown-content h3 {
+    font-size: 1.05em;
+    margin: 0.3em 0;
+}
+
+.markdown-content h4,
+.markdown-content h5,
+.markdown-content h6 {
+    font-size: 1em;
+    margin: 0.25em 0;
 }
 
 .harvest-chat-input-bar {
