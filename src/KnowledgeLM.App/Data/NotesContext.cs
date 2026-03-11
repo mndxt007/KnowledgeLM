@@ -57,12 +57,20 @@ public class NotesContext : DbContext
         {
             entity.HasIndex(v => v.ResourceId).IsUnique();
             entity.Property(v => v.Status).HasMaxLength(50);
+            entity.HasOne(v => v.Resource)
+                  .WithMany()
+                  .HasForeignKey(v => v.ResourceId)
+                  .OnDelete(DeleteBehavior.Cascade);
         });
 
         // Flashcard configuration
         modelBuilder.Entity<Flashcard>(entity =>
         {
             entity.HasIndex(f => f.ResourceId);
+            entity.HasOne(f => f.Resource)
+                  .WithMany()
+                  .HasForeignKey(f => f.ResourceId)
+                  .OnDelete(DeleteBehavior.Cascade);
         });
 
         // Podcast configuration
@@ -70,6 +78,10 @@ public class NotesContext : DbContext
         {
             entity.HasIndex(p => p.ResourceId);
             entity.Ignore(p => p.Duration);
+            entity.HasOne(p => p.Resource)
+                  .WithMany()
+                  .HasForeignKey(p => p.ResourceId)
+                  .OnDelete(DeleteBehavior.Cascade);
         });
     }
 

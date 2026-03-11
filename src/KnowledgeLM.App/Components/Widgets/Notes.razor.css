@@ -14,7 +14,8 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 14px 18px;
+    padding: 0 18px;
+    height: 52px;
     background: linear-gradient(135deg, var(--accent-fill-rest) 0%, var(--notes-success) 100%);
     color: var(--foreground-on-accent-rest, #ffffff);
     font-size: 16px;
