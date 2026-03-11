@@ -13,11 +13,27 @@ namespace KnowledgeLM.App.Components.Widgets
         private StateService StateService { get; set; } = default!;
         [Inject]
         private NotesCRUDService NotesCRUDService { get; set; } = default!;
+        [Parameter]
+        public int? ResourceId { get; set; }
+        private int? _loadedResourceId;
         private ResourceResponse ResourceResponse { get; set; } = default!;
         private SectionResponse? SectionResponse { get; set; }
         private CourseResponse? CourseResponse { get; set; }
         private string MarkDownContent = "# Hello World\nThis is a markdown content.";
         private EventCallback<ResourceResponse> _callback;
+
+        protected override async Task OnParametersSetAsync()
+        {
+            if (ResourceId.HasValue && ResourceId != _loadedResourceId)
+            {
+                var resource = await NotesCRUDService.GetResourceByIdAsync(ResourceId.Value);
+                if (resource != null)
+                {
+                    await OnResourceSelected(resource);
+                    _loadedResourceId = ResourceId.Value;
+                }
+            }
+        }
 
         protected override void OnInitialized()
         {
@@ -37,8 +53,9 @@ namespace KnowledgeLM.App.Components.Widgets
         {
             // Handle resource selection
             ResourceResponse = resourceResponse;
+            _loadedResourceId = resourceResponse.Id;
 
-            //To:DO can be optimized by caching section and course details in StateService to avoid multiple API calls when user selects resources from the same section/course
+            //To:DO can be optimizedby caching section and course details in StateService to avoid multiple API calls when user selects resources from the same section/course
 
             // Fetch Section information
             var sectionDetail = await NotesCRUDService.GetSectionByIdAsync(resourceResponse.SectionId);
