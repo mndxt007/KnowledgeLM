@@ -17,6 +17,7 @@ public class NotesContext : DbContext
     public DbSet<VectorizedResource> VectorizedResources => Set<VectorizedResource>();
     public DbSet<Flashcard> Flashcards => Set<Flashcard>();
     public DbSet<Podcast> Podcasts => Set<Podcast>();
+    public DbSet<Quiz> Quizzes => Set<Quiz>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -83,6 +84,16 @@ public class NotesContext : DbContext
                   .HasForeignKey(p => p.ResourceId)
                   .OnDelete(DeleteBehavior.Cascade);
         });
+
+        // Quiz configuration
+        modelBuilder.Entity<Quiz>(entity =>
+        {
+            entity.HasIndex(q => q.ResourceId);
+            entity.HasOne(q => q.Resource)
+                  .WithMany()
+                  .HasForeignKey(q => q.ResourceId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
     }
 
     public override int SaveChanges()
@@ -121,6 +132,12 @@ public class NotesContext : DbContext
         }
 
         foreach (var entry in ChangeTracker.Entries<Podcast>())
+        {
+            if (entry.State == EntityState.Added)
+                entry.Entity.CreatedAt = now;
+        }
+
+        foreach (var entry in ChangeTracker.Entries<Quiz>())
         {
             if (entry.State == EntityState.Added)
                 entry.Entity.CreatedAt = now;

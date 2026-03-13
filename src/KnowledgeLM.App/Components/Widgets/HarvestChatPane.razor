@@ -48,8 +48,13 @@
             </FluentButton>
         </div>
 
-        @* ── Flashcards/Podcasts action bar ── *@
+        @* ── Flashcards/Podcasts/Quiz action bar ── *@
         <div class="harvest-action-bar">
+            @if (loadingContent)
+            {
+                <FluentProgressRing Style="width: 18px; height: 18px;" />
+            }
+
             @if (HarvestState.HasFlashcards)
             {
                 <FluentButton Appearance="Appearance.Outline" IconStart="@(new Icons.Regular.Size16.Flash())"
@@ -60,7 +65,8 @@
             else
             {
                 <FluentButton Appearance="Appearance.Stealth" IconStart="@(new Icons.Regular.Size16.Flash())"
-                              OnClick="@(() => RequestGeneration("flashcards"))" Title="Generate Flashcards">
+                              OnClick="@(() => RequestGeneration("flashcards"))" Title="Generate Flashcards"
+                              Disabled="loadingContent">
                     Generate Flashcards
                 </FluentButton>
             }
@@ -75,8 +81,25 @@
             else
             {
                 <FluentButton Appearance="Appearance.Stealth" IconStart="@(new Icons.Regular.Size16.Headphones())"
-                              OnClick="@(() => RequestGeneration("podcast"))" Title="Generate Podcast">
+                              OnClick="@(() => RequestGeneration("podcast"))" Title="Generate Podcast"
+                              Disabled="loadingContent">
                     Generate Podcast
+                </FluentButton>
+            }
+
+            @if (HarvestState.HasQuizzes)
+            {
+                <FluentButton Appearance="Appearance.Outline" IconStart="@(new Icons.Regular.Size16.QuestionCircle())"
+                              OnClick="ViewQuiz" Title="Take Quiz">
+                    Quiz (@HarvestState.QuizCount)
+                </FluentButton>
+            }
+            else
+            {
+                <FluentButton Appearance="Appearance.Stealth" IconStart="@(new Icons.Regular.Size16.QuestionCircle())"
+                              OnClick="@(() => RequestGeneration("quiz"))" Title="Generate Quiz"
+                              Disabled="loadingContent">
+                    Generate Quiz
                 </FluentButton>
             }
         </div>
@@ -93,13 +116,28 @@
     {
         <div class="harvest-flashcard-container">
             <div class="harvest-flashcard-header">
-                <FluentLabel Typo="Typography.Body" Weight="FontWeight.Bold">Flashcards</FluentLabel>
+               @*  <FluentLabel Typo="Typography.Body" Weight="FontWeight.Bold">Flashcards</FluentLabel> *@
                 <FluentButton Appearance="Appearance.Stealth"
                               IconStart="@(new Icons.Regular.Size16.Dismiss())"
                               OnClick="CloseFlashcardViewer"
                               Title="Close" />
             </div>
             <FlashcardViewer Flashcards="@activeFlashcards" />
+        </div>
+    }
+
+    @* ── Quiz Viewer ── *@
+    @if (showQuizViewer && activeQuizzes is not null)
+    {
+        <div class="harvest-flashcard-container">
+            <div class="harvest-flashcard-header">
+             @*    <FluentLabel Typo="Typography.Body" Weight="FontWeight.Bold">Quiz</FluentLabel> *@
+                <FluentButton Appearance="Appearance.Stealth"
+                              IconStart="@(new Icons.Regular.Size16.Dismiss())"
+                              OnClick="CloseQuizViewer"
+                              Title="Close" />
+            </div>
+            <QuizViewer Quizzes="@activeQuizzes" />
         </div>
     }
 
