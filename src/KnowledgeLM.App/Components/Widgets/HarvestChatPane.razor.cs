@@ -18,6 +18,7 @@ public partial class HarvestChatPane : IDisposable
     [Inject] private HarvestStateService HarvestState { get; set; } = default!;
     [Inject] private PodcastService PodcastService { get; set; } = default!;
     [Inject] private FlashcardService FlashcardService { get; set; } = default!;
+    [Inject] private QuizService QuizService { get; set; } = default!;
 
     private BlockingCollection<CoPilotMessages> messages = new(new ConcurrentQueue<CoPilotMessages>());
     private string queryText = string.Empty;
@@ -30,6 +31,9 @@ public partial class HarvestChatPane : IDisposable
     private bool showPodcastPlayer = false;
     private List<Flashcard>? activeFlashcards;
     private bool showFlashcardViewer = false;
+    private List<Quiz>? activeQuizzes;
+    private bool showQuizViewer = false;
+    private bool loadingContent = false;
 
     private static readonly MarkdownPipeline MarkdownPipeline = new MarkdownPipelineBuilder()
         .UseAdvancedExtensions()
@@ -46,6 +50,7 @@ public partial class HarvestChatPane : IDisposable
         if (firstRender)
         {
             await InitializeSession();
+            await RefreshContentAvailability();
         }
         await JS.InvokeVoidAsync("scrollToBottom", "HarvestMessages");
     }
@@ -61,6 +66,8 @@ public partial class HarvestChatPane : IDisposable
             - search_notes: Search through the user's vectorized notebook content. Use IDs from get_current_context to scope your search.
             - get_flashcards: Get flashcards for a resource
             - save_flashcards: Save generated flashcards
+            - get_quizzes: Get quiz questions for a resource
+            - save_quizzes: Save generated quiz questions
             - generate_podcast_audio: Generate podcast audio from SSML
             - save_podcast: Save podcast metadata
             
@@ -73,6 +80,12 @@ public partial class HarvestChatPane : IDisposable
             1. Call get_current_context to get the current resource ID
             2. Use search_notes to retrieve the content
             3. Create Q&A pairs and save them using save_flashcards with the resource ID from context
+            
+            When generating quizzes:
+            1. Call get_current_context to get the current resource ID
+            2. Use search_notes to retrieve the content
+            3. Create 5-10 multiple-choice questions, each with 4 options, a correctOptionIndex (zero-based), and an explanation
+            4. Save them using save_quizzes with the resource ID from context
             
             When generating podcasts:
             1. Call get_current_context to get the current resource ID
@@ -200,10 +213,23 @@ public partial class HarvestChatPane : IDisposable
         var scope = HarvestState.CurrentScope;
         if (scope is null) return;
 
-        var hasFlashcards = await FlashcardService.HasFlashcardsAsync(scope.ResourceId);
-        var flashcardCount = hasFlashcards ? (await FlashcardService.GetFlashcardsByResourceIdAsync(scope.ResourceId)).Count : 0;
-        var hasPodcast = await PodcastService.HasPodcastAsync(scope.ResourceId);
-        HarvestState.UpdateContentAvailability(hasFlashcards, flashcardCount, hasPodcast);
+        loadingContent = true;
+        await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            var hasFlashcards = await FlashcardService.HasFlashcardsAsync(scope.ResourceId);
+            var flashcardCount = hasFlashcards ? (await FlashcardService.GetFlashcardsByResourceIdAsync(scope.ResourceId)).Count : 0;
+            var hasPodcast = await PodcastService.HasPodcastAsync(scope.ResourceId);
+            var hasQuizzes = await QuizService.HasQuizzesAsync(scope.ResourceId);
+            var quizCount = hasQuizzes ? await QuizService.GetQuizCountAsync(scope.ResourceId) : 0;
+            HarvestState.UpdateContentAvailability(hasFlashcards, flashcardCount, hasPodcast, hasQuizzes, quizCount);
+        }
+        finally
+        {
+            loadingContent = false;
+            await InvokeAsync(StateHasChanged);
+        }
     }
 
     private async Task RequestGeneration(string type)
@@ -212,6 +238,7 @@ public partial class HarvestChatPane : IDisposable
         {
             "flashcards" => "Generate flashcards for the currently scoped resource. Use get_current_context to find the resource, search the notes content, create Q&A pairs, and save them using save_flashcards.",
             "podcast" => "Generate a podcast for the currently scoped resource. Use get_current_context to find the resource, search the notes content, create a conversational SSML script with two speakers (en-US-AndrewMultilingualNeural and en-US-AvaMultilingualNeural), generate the audio using generate_podcast_audio, and save the metadata using save_podcast.",
+            "quiz" => "Generate a multiple-choice quiz for the currently scoped resource. Use get_current_context to find the resource, search the notes content, create 5-10 multiple-choice questions each with 4 options, a correct answer index (zero-based), and a brief explanation. Save them using save_quizzes.",
             _ => string.Empty
         };
 
@@ -259,8 +286,31 @@ public partial class HarvestChatPane : IDisposable
         activeFlashcards = null;
     }
 
+    private async Task ViewQuiz()
+    {
+        var scope = HarvestState.CurrentScope;
+        if (scope is null) return;
+
+        var quizzes = await QuizService.GetQuizzesByResourceIdAsync(scope.ResourceId);
+        if (quizzes is not null && quizzes.Count > 0)
+        {
+            activeQuizzes = quizzes;
+            showQuizViewer = true;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void CloseQuizViewer()
+    {
+        showQuizViewer = false;
+        activeQuizzes = null;
+    }
+
     private async void OnScopeChanged()
     {
+        CloseFlashcardViewer();
+        CloseQuizViewer();
+        ClosePodcastPlayer();
         await InvokeAsync(StateHasChanged);
     }
 

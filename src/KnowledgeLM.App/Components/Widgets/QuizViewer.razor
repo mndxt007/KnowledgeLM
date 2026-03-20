@@ -1,0 +1,84 @@
+@using System.Text.Json
+@using Markdig
+
+@if (Quizzes is not null && Quizzes.Count > 0)
+{
+    <div class="quiz-viewer">
+        <div class="quiz-header">
+            <FluentLabel Typo="Typography.Body" Weight="FontWeight.Bold">
+                Question (@(currentIndex + 1) / @Quizzes.Count)
+            </FluentLabel>
+            @if (isCompleted)
+            {
+                <FluentBadge Appearance="Appearance.Accent">
+                    Score: @correctCount / @Quizzes.Count
+                </FluentBadge>
+            }
+        </div>
+
+        <div class="quiz-question">
+            <FluentIcon Value="@(new Icons.Regular.Size16.QuestionCircle())" Color="@Color.Accent" />
+            <div class="quiz-markdown">@((MarkupString)RenderMarkdown(Quizzes[currentIndex].Question))</div>
+        </div>
+
+        <div class="quiz-options">
+            @foreach (var (option, index) in GetOptions().Select((o, i) => (o, i)))
+            {
+                var optionState = GetOptionState(index);
+                <div class="quiz-option @optionState" @onclick="() => SelectOption(index)">
+                    <span class="quiz-option-letter">@((char)('A' + index))</span>
+                    <span class="quiz-option-text">@option</span>
+                    @if (optionState == "correct")
+                    {
+                        <FluentIcon Value="@(new Icons.Regular.Size16.CheckmarkCircle())" Color="@Color.Success" />
+                    }
+                    else if (optionState == "incorrect")
+                    {
+                        <FluentIcon Value="@(new Icons.Regular.Size16.DismissCircle())" Color="@Color.Error" />
+                    }
+                </div>
+            }
+        </div>
+
+        @if (hasAnswered && !string.IsNullOrWhiteSpace(Quizzes[currentIndex].Explanation))
+        {
+            <div class="quiz-explanation">
+                <FluentIcon Value="@(new Icons.Regular.Size16.LightbulbFilament())" Color="@Color.Accent" />
+                <div class="quiz-markdown">@((MarkupString)RenderMarkdown(Quizzes[currentIndex].Explanation))</div>
+            </div>
+        }
+
+        <div class="quiz-nav">
+            <FluentButton Appearance="Appearance.Stealth"
+                          IconStart="@(new Icons.Regular.Size20.ArrowLeft())"
+                          Disabled="@(currentIndex == 0)"
+                          OnClick="Previous"
+                          Title="Previous" />
+            @if (hasAnswered && currentIndex < Quizzes.Count - 1)
+            {
+                <FluentButton Appearance="Appearance.Accent"
+                              IconStart="@(new Icons.Regular.Size20.ArrowRight())"
+                              OnClick="Next"
+                              Title="Next Question">
+                    Next
+                </FluentButton>
+            }
+            else if (hasAnswered && currentIndex == Quizzes.Count - 1 && !isCompleted)
+            {
+                <FluentButton Appearance="Appearance.Accent"
+                              IconStart="@(new Icons.Regular.Size20.Checkmark())"
+                              OnClick="Finish"
+                              Title="See Results">
+                    Finish
+                </FluentButton>
+            }
+            else if (!hasAnswered)
+            {
+                <FluentButton Appearance="Appearance.Stealth"
+                              IconStart="@(new Icons.Regular.Size20.ArrowRight())"
+                              Disabled="true"
+                              Title="Answer to continue" />
+            }
+        </div>
+    </div>
+}

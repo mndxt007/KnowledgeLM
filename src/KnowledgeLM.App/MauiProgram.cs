@@ -48,6 +48,7 @@ namespace KnowledgeLM.App
             kernel.Plugins.AddFromType<NotesCRUDService>("NotesManagement");
             kernel.Plugins.AddFromType<FlashcardService>("Flashcards");
             kernel.Plugins.AddFromType<PodcastService>("Podcasts");
+            kernel.Plugins.AddFromType<QuizService>("Quizzes");
             kernel.Plugins.AddFromType<RAGSearchPlugin>("RAGSearch");
 
             // Azure OpenAI Embedding Generator for RAG vectorization
@@ -73,6 +74,7 @@ namespace KnowledgeLM.App
             builder.Services.AddScoped<RAGSearchPlugin>();
             builder.Services.AddScoped<FlashcardService>();
             builder.Services.AddScoped<PodcastService>();
+            builder.Services.AddScoped<QuizService>();
             builder.Services.AddSingleton<StateService>();
             builder.Services.AddSingleton<HarvestStateService>();
             builder.Services.AddSingleton<AppNotificationService>();
@@ -124,6 +126,18 @@ namespace KnowledgeLM.App
                         FOREIGN KEY (ResourceId) REFERENCES Resources(Id)
                     );
                     CREATE INDEX IF NOT EXISTS IX_Podcasts_ResourceId ON Podcasts(ResourceId);
+
+                    CREATE TABLE IF NOT EXISTS Quizzes (
+                        Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        ResourceId INTEGER NOT NULL,
+                        Question TEXT NOT NULL,
+                        OptionsJson TEXT NOT NULL DEFAULT '[]',
+                        CorrectOptionIndex INTEGER NOT NULL DEFAULT 0,
+                        Explanation TEXT,
+                        CreatedAt TEXT NOT NULL,
+                        FOREIGN KEY (ResourceId) REFERENCES Resources(Id)
+                    );
+                    CREATE INDEX IF NOT EXISTS IX_Quizzes_ResourceId ON Quizzes(ResourceId);
                 ");
             }
 
