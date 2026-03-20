@@ -13,6 +13,7 @@ public partial class HarvestNotesPane : IDisposable
     [Inject] private VectorStoreService VectorStoreService { get; set; } = default!;
     [Inject] private FlashcardService FlashcardService { get; set; } = default!;
     [Inject] private PodcastService PodcastService { get; set; } = default!;
+    [Inject] private QuizService QuizService { get; set; } = default!;
     [Inject] private ILogger<HarvestNotesPane> Logger { get; set; } = default!;
 
     private EventCallback<ResourceResponse> _callback;
@@ -47,12 +48,14 @@ public partial class HarvestNotesPane : IDisposable
             });
         }
 
-        // Check for existing flashcards and podcasts
+        // Check for existing flashcards, podcasts, and quizzes
         var hasFlashcards = await FlashcardService.HasFlashcardsAsync(resource.Id);
         var flashcardCount = hasFlashcards ? await FlashcardService.GetFlashcardCountAsync(resource.Id) : 0;
         var hasPodcast = await PodcastService.HasPodcastAsync(resource.Id);
+        var hasQuizzes = await QuizService.HasQuizzesAsync(resource.Id);
+        var quizCount = hasQuizzes ? await QuizService.GetQuizCountAsync(resource.Id) : 0;
 
-        HarvestState.UpdateContentAvailability(hasFlashcards, flashcardCount, hasPodcast);
+        HarvestState.UpdateContentAvailability(hasFlashcards, flashcardCount, hasPodcast, hasQuizzes, quizCount);
     }
 
     public void Dispose()
