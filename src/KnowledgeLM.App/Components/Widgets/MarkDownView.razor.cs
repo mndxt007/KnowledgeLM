@@ -20,7 +20,13 @@ namespace KnowledgeLM.App.Components.Widgets
         private SectionResponse? SectionResponse { get; set; }
         private CourseResponse? CourseResponse { get; set; }
         private string MarkDownContent = "# Hello World\nThis is a markdown content.";
+        private bool _hasSearchResults;
         private EventCallback<ResourceResponse> _callback;
+
+        private void OnSearchResultsChanged(bool hasResults)
+        {
+            _hasSearchResults = hasResults;
+        }
 
         protected override async Task OnAfterRenderAsync(bool first)
         {

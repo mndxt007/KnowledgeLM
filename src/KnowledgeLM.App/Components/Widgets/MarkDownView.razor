@@ -1,4 +1,5 @@
-﻿@using KnowledgeLM.MonacoEditor.Markdown
+﻿@using KnowledgeLM.App.Components.Widgets.HomeWidgets
+@using KnowledgeLM.MonacoEditor.Markdown
 
 <FluentCard Style="height: 100%; display: flex; flex-direction: column;">
    
@@ -36,7 +37,7 @@
     else
     {
         <div class="landing-container">
-            <div class="landing-icon">
+            <div class="landing-icon @(_hasSearchResults ? "landing-icon-hidden" : "")">
                 <FluentIcon Value="@(new Icons.Regular.Size32.Notebook())" Color="@Color.Accent" Style="width:48px;height:48px;" />
             </div>
             <h2 class="landing-title">Welcome to LearnLoom</h2>
@@ -55,6 +56,7 @@
                     Pick a resource
                 </span>
             </div>
+            <SearchWidget HasResultsChanged="OnSearchResultsChanged"/>
         </div>
     }
 

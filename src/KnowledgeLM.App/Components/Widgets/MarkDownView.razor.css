@@ -55,6 +55,16 @@
     border-radius: 50%;
     background: color-mix(in srgb, var(--accent-fill-rest) 12%, transparent);
     margin-bottom: 0.5rem;
+    transition: opacity 0.4s ease, max-height 0.4s ease, margin 0.4s ease;
+    max-height: 96px;
+    opacity: 1;
+    overflow: hidden;
+}
+
+.landing-icon-hidden {
+    opacity: 0;
+    max-height: 0;
+    margin: 0;
 }
 
 ::deep .landing-icon svg {
