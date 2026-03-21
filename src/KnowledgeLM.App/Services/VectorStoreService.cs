@@ -204,7 +204,8 @@ public class VectorStoreService
         int? resourceId = null,
         int? sectionId = null,
         int? courseId = null,
-        int top = 5)
+        int top = 5,
+        CancellationToken cancellationToken = default)
     {
         if (_embeddingGenerator is null)
         {
@@ -214,7 +215,7 @@ public class VectorStoreService
 
         try
         {
-            var queryEmbedding = await _embeddingGenerator.GenerateAsync(query);
+            var queryEmbedding = await _embeddingGenerator.GenerateAsync(query, cancellationToken: cancellationToken);
 
             var collection = new SqliteCollection<string, NoteChunk>(
                 _vectorDbConnectionString, CollectionName);
@@ -235,10 +236,10 @@ public class VectorStoreService
                 searchOptions.Filter = r => r.CourseId == courseId.Value;
             }
 
-            var results = collection.SearchAsync(queryEmbedding.Vector, top, searchOptions);
+            var results = collection.SearchAsync(queryEmbedding.Vector, top, searchOptions, cancellationToken);
 
             var searchResults = new List<NoteSearchResult>();
-            await foreach (var result in results)
+            await foreach (var result in results.WithCancellation(cancellationToken))
             {
                 searchResults.Add(new NoteSearchResult
                 {
@@ -248,6 +249,26 @@ public class VectorStoreService
                     ResourceId = result.Record.ResourceId,
                     Score = result.Score ?? 0
                 });
+            }
+
+            // Enrich results with breadcrumb data from the relational DB
+            var resourceIds = searchResults.Select(r => r.ResourceId).Distinct().ToList();
+            await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+            var resources = await context.Resources
+                .Include(r => r.Section)
+                    .ThenInclude(s => s.Course)
+                .Where(r => resourceIds.Contains(r.Id))
+                .ToDictionaryAsync(r => r.Id, cancellationToken);
+
+            foreach (var sr in searchResults)
+            {
+                if (resources.TryGetValue(sr.ResourceId, out var resource))
+                {
+                    sr.CourseName = resource.Section.Course.Name;
+                    sr.SectionName = resource.Section.Name;
+                    sr.Location = resource.Location;
+                    sr.LastModified = resource.LastModified;
+                }
             }
 
             return searchResults;
@@ -350,4 +371,8 @@ public class NoteSearchResult
     public string SourceLink { get; set; } = string.Empty;
     public int ResourceId { get; set; }
     public double Score { get; set; }
+    public string CourseName { get; set; } = string.Empty;
+    public string SectionName { get; set; } = string.Empty;
+    public string? Location { get; set; }
+    public DateTime LastModified { get; set; }
 }
