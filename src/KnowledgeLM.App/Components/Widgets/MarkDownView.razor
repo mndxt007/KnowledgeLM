@@ -1,23 +1,29 @@
-﻿@using KnowledgeLM.MonacoEditor.Markdown
+﻿@using KnowledgeLM.App.Components.Widgets.HomeWidgets
+@using KnowledgeLM.MonacoEditor.Markdown
 
 <FluentCard Style="height: 100%; display: flex; flex-direction: column;">
    
     @if(ResourceResponse is not null)
     {
-        <FluentBreadcrumb Class="p-2">
-            <FluentBreadcrumbItem Href="#">
-                @CourseResponse?.Name
-                <FluentIcon Value="@(new Icons.Regular.Size16.BookOpen())" Color="@Color.Neutral" Slot="start" />
-            </FluentBreadcrumbItem>
-            <FluentBreadcrumbItem Href="#">
-                @SectionResponse?.Name
-                <FluentIcon Value="@(new Icons.Regular.Size16.Folder())" Color="@Color.Neutral" Slot="start" />
-            </FluentBreadcrumbItem>
-            <FluentBreadcrumbItem>
-                @ResourceResponse?.Name
-                <FluentIcon Value="@(new Icons.Regular.Size16.Document())" Color="@Color.Neutral" Slot="start" />
-            </FluentBreadcrumbItem>
-        </FluentBreadcrumb>
+        <div style="display: flex; align-items: center; justify-content: space-between; padding-right: 8px;">
+            <FluentBreadcrumb Class="p-2">
+                <FluentBreadcrumbItem Href="#">
+                    @Breadcrumb?.CourseName
+                    <FluentIcon Value="@(new Icons.Regular.Size16.BookOpen())" Color="@Color.Neutral" Slot="start" />
+                </FluentBreadcrumbItem>
+                <FluentBreadcrumbItem Href="#">
+                    @Breadcrumb?.SectionName
+                    <FluentIcon Value="@(new Icons.Regular.Size16.Folder())" Color="@Color.Neutral" Slot="start" />
+                </FluentBreadcrumbItem>
+                <FluentBreadcrumbItem>
+                    @Breadcrumb?.ResourceName
+                    <FluentIcon Value="@(new Icons.Regular.Size16.Document())" Color="@Color.Neutral" Slot="start" />
+                </FluentBreadcrumbItem>
+            </FluentBreadcrumb>
+            <FluentButton Appearance="Appearance.Stealth" Title="Close" OnClick="CloseResource">
+                <FluentIcon Value="@(new Icons.Regular.Size16.Dismiss())" Color="@Color.Neutral" />
+            </FluentButton>
+        </div>
         <div class="metadata-bar">
             <span class="badge-pill-success">
                 <FluentIcon Value="@(new Icons.Regular.Size16.Notebook())" Color="@Color.Fill" />
@@ -36,7 +42,7 @@
     else
     {
         <div class="landing-container">
-            <div class="landing-icon">
+            <div class="landing-icon @(_hasSearchResults ? "landing-icon-hidden" : "")">
                 <FluentIcon Value="@(new Icons.Regular.Size32.Notebook())" Color="@Color.Accent" Style="width:48px;height:48px;" />
             </div>
             <h2 class="landing-title">Welcome to LearnLoom</h2>
@@ -55,6 +61,7 @@
                     Pick a resource
                 </span>
             </div>
+            <SearchWidget HasResultsChanged="OnSearchResultsChanged" OnResourceClicked="OnSearchResourceClicked" />
         </div>
     }
 
