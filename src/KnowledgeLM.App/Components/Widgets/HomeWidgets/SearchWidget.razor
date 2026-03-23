@@ -1,0 +1,46 @@
+﻿<div class="search-box-wrapper @(isSearching ? "glowing-container" : "")" style="width: 60%;">
+    <FluentSearch style="width: 100%;"
+                  @ref=searchTest
+                  @bind-Value="@searchValue"
+                  Immediate="true",
+                  ImmediateDelay="1000"
+                  @bind-Value:after=HandleSearchInput
+                  Placeholder="Search Notes" />
+</div>
+
+@if (searchResults.Count > 0)
+{
+    <div class="search-results">
+        @foreach (var result in searchResults)
+        {
+        <div class="search-result-wrapper" style="cursor: pointer;" @onclick="@(() => OnResourceClicked.InvokeAsync(result.ResourceId))">
+            <FluentCard Class="search-result-card">
+                <div class="search-breadcrumb p-2">
+                    <FluentIcon Value="@(new Icons.Regular.Size16.BookOpen())" Color="@Color.Neutral" />
+                    <span class="breadcrumb-text" title="@result.CourseName">@Truncate(result.CourseName, 30)</span>
+                    <span class="breadcrumb-sep">/</span>
+                    <FluentIcon Value="@(new Icons.Regular.Size16.Folder())" Color="@Color.Neutral" />
+                    <span class="breadcrumb-text" title="@result.SectionName">@Truncate(result.SectionName, 30)</span>
+                    <span class="breadcrumb-sep">/</span>
+                    <FluentIcon Value="@(new Icons.Regular.Size16.Document())" Color="@Color.Neutral" />
+                    <span class="breadcrumb-text" title="@result.SourceName">@Truncate(result.SourceName, 35)</span>
+                </div>
+                <div class="metadata-bar">
+                    <span class="badge-pill-success" title="@result.Location">
+                        <FluentIcon Value="@(new Icons.Regular.Size16.Notebook())" Color="@Color.Fill" />
+                        @Truncate(result.Location, 50)
+                    </span>
+                    <span class="badge-pill-success">
+                        <FluentIcon Value="@(new Icons.Regular.Size16.Clock())" Color="@Color.Fill" />
+                        @result.LastModified.ToLocalTime().ToString("g")
+                    </span>
+                </div>
+                <div class="content-preview">
+                    @((MarkupString)RenderMarkdown(result.Text))
+                </div>
+            </FluentCard>
+        </div>
+        }
+    </div>
+}
+

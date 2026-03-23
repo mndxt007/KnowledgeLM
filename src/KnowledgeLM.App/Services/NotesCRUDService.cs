@@ -17,17 +17,27 @@ public class NotesCRUDService
 {
     private readonly IDbContextFactory<NotesContext> _contextFactory;
     private readonly StateService _stateService;
+    private readonly AppNotificationService _notifications;
 
-    public NotesCRUDService(IDbContextFactory<NotesContext> contextFactory, StateService stateService)
+    public NotesCRUDService(IDbContextFactory<NotesContext> contextFactory, StateService stateService, AppNotificationService notifications)
     {
         _contextFactory = contextFactory;
         _stateService = stateService;
+        _notifications = notifications;
     }
 
-    private async Task SaveAndNotifyAsync(NotesContext context)
+    private async Task SaveAndRefreshAsync(NotesContext context)
     {
         await context.SaveChangesAsync();
         _stateService.RequestRefresh();
+    }
+
+    private void Notify((bool isSuccess, string message) result)
+    {
+        if (result.isSuccess)
+            _notifications.NotifySuccess(result.message);
+        else
+            _notifications.NotifyError(result.message);
     }
 
     // ─── Course Operations ───────────────────────────────────────
@@ -110,7 +120,8 @@ public class NotesCRUDService
             Location = request.Location
         };
         context.Courses.Add(course);
-        await SaveAndNotifyAsync(context);
+        await SaveAndRefreshAsync(context);
+        Notify((true, $"Course '{course.Name}' created"));
 
         return new CourseResponse
         {
@@ -130,13 +141,18 @@ public class NotesCRUDService
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
         var existing = await context.Courses.FindAsync(request.Id);
-        if (existing is null) return false;
+        if (existing is null)
+        {
+            Notify((false, "Course not found"));
+            return false;
+        }
 
         existing.Name = request.Name;
         existing.Description = request.Description;
         existing.Location = request.Location;
 
-        await SaveAndNotifyAsync(context);
+        await SaveAndRefreshAsync(context);
+        Notify((true, $"Course '{existing.Name}' updated"));
         return true;
     }
 
@@ -144,10 +160,15 @@ public class NotesCRUDService
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
         var course = await context.Courses.FindAsync(id);
-        if (course is null) return false;
+        if (course is null)
+        {
+            Notify((false, "Course not found"));
+            return false;
+        }
 
         context.Courses.Remove(course);
-        await SaveAndNotifyAsync(context);
+        await SaveAndRefreshAsync(context);
+        Notify((true, $"Course '{course.Name}' deleted"));
         return true;
     }
 
@@ -224,7 +245,8 @@ public class NotesCRUDService
             Location = request.Location
         };
         context.Sections.Add(section);
-        await SaveAndNotifyAsync(context);
+        await SaveAndRefreshAsync(context);
+        Notify((true, $"Section '{section.Name}' created"));
 
         return new SectionResponse
         {
@@ -245,13 +267,18 @@ public class NotesCRUDService
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
         var existing = await context.Sections.FindAsync(request.Id);
-        if (existing is null) return false;
+        if (existing is null)
+        {
+            Notify((false, "Section not found"));
+            return false;
+        }
 
         existing.Name = request.Name;
         existing.Description = request.Description;
         existing.Location = request.Location;
 
-        await SaveAndNotifyAsync(context);
+        await SaveAndRefreshAsync(context);
+        Notify((true, $"Section '{existing.Name}' updated"));
         return true;
     }
 
@@ -259,10 +286,15 @@ public class NotesCRUDService
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
         var section = await context.Sections.FindAsync(id);
-        if (section is null) return false;
+        if (section is null)
+        {
+            Notify((false, "Section not found"));
+            return false;
+        }
 
         context.Sections.Remove(section);
-        await SaveAndNotifyAsync(context);
+        await SaveAndRefreshAsync(context);
+        Notify((true, $"Section '{section.Name}' deleted"));
         return true;
     }
 
@@ -326,7 +358,8 @@ public class NotesCRUDService
             ResourceType = request.ResourceType
         };
         context.Resources.Add(resource);
-        await SaveAndNotifyAsync(context);
+        await SaveAndRefreshAsync(context);
+        Notify((true, $"Resource '{resource.Name}' created"));
 
         return new ResourceResponse
         {
@@ -346,13 +379,18 @@ public class NotesCRUDService
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
         var existing = await context.Resources.FindAsync(request.Id);
-        if (existing is null) return false;
+        if (existing is null)
+        {
+            Notify((false, "Resource not found"));
+            return false;
+        }
 
         existing.Name = request.Name;
         existing.Location = request.Location;
         existing.ResourceType = request.ResourceType;
 
-        await SaveAndNotifyAsync(context);
+        await SaveAndRefreshAsync(context);
+        Notify((true, $"Resource '{existing.Name}' updated"));
         return true;
     }
 
@@ -360,10 +398,15 @@ public class NotesCRUDService
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
         var resource = await context.Resources.FindAsync(id);
-        if (resource is null) return false;
+        if (resource is null)
+        {
+            Notify((false, "Resource not found"));
+            return false;
+        }
 
         context.Resources.Remove(resource);
-        await SaveAndNotifyAsync(context);
+        await SaveAndRefreshAsync(context);
+        Notify((true, $"Resource '{resource.Name}' deleted"));
         return true;
     }
 
