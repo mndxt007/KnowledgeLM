@@ -63,14 +63,7 @@
                                 </details>
                             }
                             <div class="chat-bubble-content markdown-content">
-                                @if (line.Message == "\n\n")
-                                {
-                                    <span>..</span>
-                                }
-                                else if (!string.IsNullOrWhiteSpace(line.Message))
-                                {
-                                    @((MarkupString)RenderMarkdown(line.Message))
-                                }
+                                 @((MarkupString)RenderMarkdown(line.Message))
                             </div>
                         </div>
                     </div>

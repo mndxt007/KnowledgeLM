@@ -5,20 +5,25 @@
    
     @if(ResourceResponse is not null)
     {
-        <FluentBreadcrumb Class="p-2">
-            <FluentBreadcrumbItem Href="#">
-                @CourseResponse?.Name
-                <FluentIcon Value="@(new Icons.Regular.Size16.BookOpen())" Color="@Color.Neutral" Slot="start" />
-            </FluentBreadcrumbItem>
-            <FluentBreadcrumbItem Href="#">
-                @SectionResponse?.Name
-                <FluentIcon Value="@(new Icons.Regular.Size16.Folder())" Color="@Color.Neutral" Slot="start" />
-            </FluentBreadcrumbItem>
-            <FluentBreadcrumbItem>
-                @ResourceResponse?.Name
-                <FluentIcon Value="@(new Icons.Regular.Size16.Document())" Color="@Color.Neutral" Slot="start" />
-            </FluentBreadcrumbItem>
-        </FluentBreadcrumb>
+        <div style="display: flex; align-items: center; justify-content: space-between; padding-right: 8px;">
+            <FluentBreadcrumb Class="p-2">
+                <FluentBreadcrumbItem Href="#">
+                    @Breadcrumb?.CourseName
+                    <FluentIcon Value="@(new Icons.Regular.Size16.BookOpen())" Color="@Color.Neutral" Slot="start" />
+                </FluentBreadcrumbItem>
+                <FluentBreadcrumbItem Href="#">
+                    @Breadcrumb?.SectionName
+                    <FluentIcon Value="@(new Icons.Regular.Size16.Folder())" Color="@Color.Neutral" Slot="start" />
+                </FluentBreadcrumbItem>
+                <FluentBreadcrumbItem>
+                    @Breadcrumb?.ResourceName
+                    <FluentIcon Value="@(new Icons.Regular.Size16.Document())" Color="@Color.Neutral" Slot="start" />
+                </FluentBreadcrumbItem>
+            </FluentBreadcrumb>
+            <FluentButton Appearance="Appearance.Stealth" Title="Close" OnClick="CloseResource">
+                <FluentIcon Value="@(new Icons.Regular.Size16.Dismiss())" Color="@Color.Neutral" />
+            </FluentButton>
+        </div>
         <div class="metadata-bar">
             <span class="badge-pill-success">
                 <FluentIcon Value="@(new Icons.Regular.Size16.Notebook())" Color="@Color.Fill" />
@@ -56,7 +61,7 @@
                     Pick a resource
                 </span>
             </div>
-            <SearchWidget HasResultsChanged="OnSearchResultsChanged"/>
+            <SearchWidget HasResultsChanged="OnSearchResultsChanged" OnResourceClicked="OnSearchResourceClicked" />
         </div>
     }
 
