@@ -1,32 +1,29 @@
-﻿@using KnowledgeLM.App.Services
-@using Microsoft.Extensions.Logging
-@using Markdig
-@implements IDisposable
-
-<FluentSearch style="width: 60%;"
-              @ref=searchTest
-              @bind-Value="@searchValue"
-              Immediate="true",
-              ImmediateDelay="00"
-              @bind-Value:after=HandleSearchInput
-              Placeholder="Search Notes" />
+﻿<div class="search-box-wrapper @(isSearching ? "glowing-container" : "")" style="width: 60%;">
+    <FluentSearch style="width: 100%;"
+                  @ref=searchTest
+                  @bind-Value="@searchValue"
+                  Immediate="true",
+                  ImmediateDelay="1000"
+                  @bind-Value:after=HandleSearchInput
+                  Placeholder="Search Notes" />
+</div>
 
 @if (searchResults.Count > 0)
 {
     <div class="search-results">
         @foreach (var result in searchResults)
         {
-        <div class="search-result-wrapper">
+        <div class="search-result-wrapper" style="cursor: pointer;" @onclick="@(() => OnResourceClicked.InvokeAsync(result.ResourceId))">
             <FluentCard Class="search-result-card">
                 <div class="search-breadcrumb p-2">
                     <FluentIcon Value="@(new Icons.Regular.Size16.BookOpen())" Color="@Color.Neutral" />
-                    <span class="breadcrumb-text" title="@result.CourseName">@Truncate(result.CourseName, 25)</span>
+                    <span class="breadcrumb-text" title="@result.CourseName">@Truncate(result.CourseName, 30)</span>
                     <span class="breadcrumb-sep">/</span>
                     <FluentIcon Value="@(new Icons.Regular.Size16.Folder())" Color="@Color.Neutral" />
-                    <span class="breadcrumb-text" title="@result.SectionName">@Truncate(result.SectionName, 25)</span>
+                    <span class="breadcrumb-text" title="@result.SectionName">@Truncate(result.SectionName, 30)</span>
                     <span class="breadcrumb-sep">/</span>
                     <FluentIcon Value="@(new Icons.Regular.Size16.Document())" Color="@Color.Neutral" />
-                    <span class="breadcrumb-text" title="@result.SourceName">@Truncate(result.SourceName, 15)</span>
+                    <span class="breadcrumb-text" title="@result.SourceName">@Truncate(result.SourceName, 35)</span>
                 </div>
                 <div class="metadata-bar">
                     <span class="badge-pill-success" title="@result.Location">
@@ -47,68 +44,3 @@
     </div>
 }
 
-@code {
-    private FluentSearch? searchTest;
-    string? searchValue = string.Empty;
-    private CancellationTokenSource? _cts;
-    private List<NoteSearchResult> searchResults = [];
-
-    private static readonly MarkdownPipeline MarkdownPipeline = new MarkdownPipelineBuilder()
-        .UseAdvancedExtensions()
-        .Build();
-
-    [Parameter]
-    public EventCallback<bool> HasResultsChanged { get; set; }
-
-    [Inject]
-    ILogger<SearchWidget> Logger { get; set; } = default!;
-
-    [Inject]
-    VectorStoreService VectorStoreService { get; set; } = default!;
-
-    async Task HandleSearchInput()
-    {
-        _cts?.Cancel();
-        _cts?.Dispose();
-        _cts = new CancellationTokenSource();
-        var token = _cts.Token;
-
-        Logger.LogInformation("Search input changed: {SearchValue}", searchValue);
-        if (!String.IsNullOrWhiteSpace(searchValue) && searchValue.Trim().Length >= 3)
-        {
-            try
-            {
-                var results = await VectorStoreService.SearchAsync(searchValue, top: 3, cancellationToken: token);
-                searchResults = results;
-                await HasResultsChanged.InvokeAsync(searchResults.Count > 0);
-            }
-            catch (OperationCanceledException)
-            {
-                Logger.LogDebug("Search cancelled for: {SearchValue}", searchValue);
-            }
-        }
-        else
-        {
-            searchResults = [];
-            await HasResultsChanged.InvokeAsync(false);
-        }
-    }
-
-    private static string RenderMarkdown(string? text)
-    {
-        if (string.IsNullOrWhiteSpace(text)) return string.Empty;
-        return Markdown.ToHtml(text, MarkdownPipeline);
-    }
-
-    private static string Truncate(string? value, int maxLength)
-    {
-        if (string.IsNullOrEmpty(value)) return string.Empty;
-        return value.Length <= maxLength ? value : value[..(maxLength - 1)] + "…";
-    }
-
-    public void Dispose()
-    {
-        _cts?.Cancel();
-        _cts?.Dispose();
-    }
-}

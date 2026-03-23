@@ -17,8 +17,7 @@ namespace KnowledgeLM.App.Components.Widgets
         public int? ResourceId { get; set; }
         private int? _loadedResourceId;
         private ResourceResponse ResourceResponse { get; set; } = default!;
-        private SectionResponse? SectionResponse { get; set; }
-        private CourseResponse? CourseResponse { get; set; }
+        private ResourceBreadcrumbDto? Breadcrumb { get; set; }
         private string MarkDownContent = "# Hello World\nThis is a markdown content.";
         private bool _hasSearchResults;
         private EventCallback<ResourceResponse> _callback;
@@ -26,6 +25,15 @@ namespace KnowledgeLM.App.Components.Widgets
         private void OnSearchResultsChanged(bool hasResults)
         {
             _hasSearchResults = hasResults;
+        }
+
+        private async Task OnSearchResourceClicked(int resourceId)
+        {
+            var resource = await NotesCRUDService.GetResourceByIdAsync(resourceId);
+            if (resource is not null)
+            {
+                await StateService.OnResourceSelected(resource);
+            }
         }
 
         protected override async Task OnAfterRenderAsync(bool first)
@@ -57,32 +65,10 @@ namespace KnowledgeLM.App.Components.Widgets
 
         private async Task OnResourceSelected(ResourceResponse resourceResponse)
         {
-            // Handle resource selection
             ResourceResponse = resourceResponse;
             _loadedResourceId = resourceResponse.Id;
 
-            //To:DO can be optimizedby caching section and course details in StateService to avoid multiple API calls when user selects resources from the same section/course
-
-            // Fetch Section information
-            var sectionDetail = await NotesCRUDService.GetSectionByIdAsync(resourceResponse.SectionId);
-            if (sectionDetail != null)
-            {
-                SectionResponse = new SectionResponse
-                {
-                    Id = sectionDetail.Id,
-                    CourseId = sectionDetail.CourseId,
-                    Name = sectionDetail.Name,
-                    Description = sectionDetail.Description,
-                    Location = sectionDetail.Location,
-                    CreatedAt = sectionDetail.CreatedAt,
-                    LastModified = sectionDetail.LastModified,
-                    ResourceCount = sectionDetail.Resources.Count
-                };
-
-                // Fetch Course information
-                var courses = await NotesCRUDService.GetAllCoursesAsync();
-                CourseResponse = courses.FirstOrDefault(c => c.Id == sectionDetail.CourseId);
-            }
+            Breadcrumb = await NotesCRUDService.GetBreadcrumbAsync(resourceResponse.Id);
 
             await ExtractContent(resourceResponse?.Location!);
             await InvokeAsync(StateHasChanged);
@@ -111,6 +97,15 @@ namespace KnowledgeLM.App.Components.Widgets
         {
             MarkDownContent = newContent;
             return Task.CompletedTask;
+        }
+
+        private void CloseResource()
+        {
+            ResourceResponse = default!;
+            Breadcrumb = null;
+            _loadedResourceId = null;
+            MarkDownContent = string.Empty;
+            _hasSearchResults = false;
         }
     }
 }

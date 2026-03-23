@@ -112,7 +112,7 @@ public partial class HarvestChatPane : IDisposable
                     messages.Add(new CoPilotMessages
                     {
                         EventType = evt.Type,
-                        Message = String.IsNullOrWhiteSpace(assistantMsg.Data.Content) ? "......." : assistantMsg.Data.Content,
+                        Message = String.IsNullOrWhiteSpace(assistantMsg.Data.Content) ? "....." : assistantMsg.Data.Content,
                         ReasoningText = assistantMsg.Data.ReasoningText ?? string.Empty
                     });
                     StateHasChanged();
