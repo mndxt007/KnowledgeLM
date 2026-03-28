@@ -9,7 +9,7 @@ public static class MarkdownPipelineFactory
         return BuildPipeline(MarkdownOptions.Default);
     }
 
-    public static MarkdownPipeline BuildPipeline(MarkdownOptions options)
+    public static MarkdownPipeline BuildPipeline(MarkdownOptions options, string? baseDirectory = null)
     {
         ArgumentNullException.ThrowIfNull(options);
 
@@ -53,6 +53,9 @@ public static class MarkdownPipelineFactory
 
         if (options.EnableFrontMatter)
             builder.UseYamlFrontMatter();
+
+        if (!string.IsNullOrEmpty(baseDirectory))
+            builder.Use(new LocalImageLinkExtension(baseDirectory));
 
         return builder.Build();
     }

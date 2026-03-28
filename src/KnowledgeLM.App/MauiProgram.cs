@@ -8,6 +8,7 @@ using Microsoft.FluentUI.AspNetCore.Components;
 using Microsoft.SemanticKernel;
 using Microsoft.Extensions.Hosting;
 using Plugin.Maui.Audio;
+using KnowledgeLM.App.Helpers;
 
 namespace KnowledgeLM.App
 {
@@ -63,7 +64,8 @@ namespace KnowledgeLM.App
             }
 
             // EF Core - SQLite with IDbContextFactory for Blazor concurrency safety
-            var dbPath = Path.Combine(FileSystem.AppDataDirectory, "knowledgelm.db");
+            //var dbPath = Path.Combine(FileSystem.AppDataDirectory, "knowledgelm.db");
+            var dbPath = AgentStatics.LearnLoomDBPath;
             builder.Services.AddDbContextFactory<NotesContext>(options =>
                 options.UseSqlite($"Data Source={dbPath}"));
 
@@ -101,7 +103,7 @@ namespace KnowledgeLM.App
                         VectorizedAt TEXT NOT NULL,
                         ChunkCount INTEGER NOT NULL DEFAULT 0,
                         Status TEXT NOT NULL DEFAULT 'Pending',
-                        FOREIGN KEY (ResourceId) REFERENCES Resources(Id)
+                        FOREIGN KEY (ResourceId) REFERENCES Resources(Id) ON DELETE CASCADE
                     );
                     CREATE UNIQUE INDEX IF NOT EXISTS IX_VectorizedResources_ResourceId ON VectorizedResources(ResourceId);
 
@@ -111,7 +113,7 @@ namespace KnowledgeLM.App
                         Question TEXT NOT NULL,
                         Answer TEXT NOT NULL,
                         CreatedAt TEXT NOT NULL,
-                        FOREIGN KEY (ResourceId) REFERENCES Resources(Id)
+                        FOREIGN KEY (ResourceId) REFERENCES Resources(Id) ON DELETE CASCADE
                     );
                     CREATE INDEX IF NOT EXISTS IX_Flashcards_ResourceId ON Flashcards(ResourceId);
 
@@ -123,7 +125,7 @@ namespace KnowledgeLM.App
                         SsmlContent TEXT,
                         DurationTicks INTEGER NOT NULL DEFAULT 0,
                         CreatedAt TEXT NOT NULL,
-                        FOREIGN KEY (ResourceId) REFERENCES Resources(Id)
+                        FOREIGN KEY (ResourceId) REFERENCES Resources(Id) ON DELETE CASCADE
                     );
                     CREATE INDEX IF NOT EXISTS IX_Podcasts_ResourceId ON Podcasts(ResourceId);
 
@@ -135,7 +137,7 @@ namespace KnowledgeLM.App
                         CorrectOptionIndex INTEGER NOT NULL DEFAULT 0,
                         Explanation TEXT,
                         CreatedAt TEXT NOT NULL,
-                        FOREIGN KEY (ResourceId) REFERENCES Resources(Id)
+                        FOREIGN KEY (ResourceId) REFERENCES Resources(Id) ON DELETE CASCADE
                     );
                     CREATE INDEX IF NOT EXISTS IX_Quizzes_ResourceId ON Quizzes(ResourceId);
                 ");

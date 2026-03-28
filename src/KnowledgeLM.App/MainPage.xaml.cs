@@ -12,44 +12,61 @@ namespace KnowledgeLM.App
 
         private void BlazorWebView_WebResourceRequested(object? sender, WebViewWebResourceRequestedEventArgs webResourceRequestedEventArgs)
         {
-            //Check URI is a local file
+            if (webResourceRequestedEventArgs.Uri.AbsolutePath.StartsWith("/LearnLoomResource"))
+            {
+                var query = System.Web.HttpUtility.ParseQueryString(webResourceRequestedEventArgs.Uri.Query);
+                var fullPath = query["fullpath"];
+
+                if (string.IsNullOrEmpty(fullPath))
+                {
+                    webResourceRequestedEventArgs.SetResponse(400, "Bad Request");
+                    return;
+                }
+
+                ServeLocalFile(webResourceRequestedEventArgs, fullPath);
+                return;
+            }
+
             if (!webResourceRequestedEventArgs.Uri.AbsolutePath.StartsWith("/Notes"))
                 return;
 
             var assetsFilePath = Path.Combine("Q:\\Dev",webResourceRequestedEventArgs.Uri.LocalPath.TrimStart('/'));
+            ServeLocalFile(webResourceRequestedEventArgs, assetsFilePath);
+        }
 
-
+        private static void ServeLocalFile(WebViewWebResourceRequestedEventArgs eventArgs, string filePath)
+        {
             try
             {
-                FileStream fs = File.OpenRead(assetsFilePath);
+                FileStream fs = File.OpenRead(filePath);
                 ManagedStream ms = new ManagedStream(fs);
-                string headers = "";
-                if (assetsFilePath.EndsWith(".html"))
-                {
-                    headers = "Content-Type: text/html";
-                }
-                else if (assetsFilePath.EndsWith(".jpg"))
-                {
-                    headers = "Content-Type: image/jpeg";
-                }
-                else if (assetsFilePath.EndsWith(".png"))
-                {
-                    headers = "Content-Type: image/png";
-                }
-                else if (assetsFilePath.EndsWith(".css"))
-                {
-                    headers = "Content-Type: text/css";
-                }
-                else if (assetsFilePath.EndsWith(".js"))
-                {
-                    headers = "Content-Type: application/javascript";
-                }
-                webResourceRequestedEventArgs.SetResponse(200, "OK", headers, ms);
+                string headers = GetContentTypeHeader(filePath);
+                eventArgs.SetResponse(200, "OK", headers, ms);
             }
             catch (Exception)
             {
-                webResourceRequestedEventArgs.SetResponse(404, "Not found");
+                eventArgs.SetResponse(404, "Not found");
             }
+        }
+
+        private static string GetContentTypeHeader(string filePath)
+        {
+            var extension = Path.GetExtension(filePath).ToLowerInvariant();
+            return extension switch
+            {
+                ".html" => "Content-Type: text/html",
+                ".jpg" or ".jpeg" => "Content-Type: image/jpeg",
+                ".png" => "Content-Type: image/png",
+                ".gif" => "Content-Type: image/gif",
+                ".svg" => "Content-Type: image/svg+xml",
+                ".webp" => "Content-Type: image/webp",
+                ".bmp" => "Content-Type: image/bmp",
+                ".ico" => "Content-Type: image/x-icon",
+                ".css" => "Content-Type: text/css",
+                ".js" => "Content-Type: application/javascript",
+                ".pdf" => "Content-Type: application/pdf",
+                _ => ""
+            };
         }
 
         protected override void OnAppearing()

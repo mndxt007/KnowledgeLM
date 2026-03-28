@@ -41,7 +41,7 @@ namespace KnowledgeLM.App.Services
             }
 
             var getNotesFolderTool = AIFunctionFactory.Create(
-                () => AgentPrompts.NotesFolder,
+                () => AgentStatics.LearnLoomRoot,
                 name: "get_notes_folder",
                 description: "Returns the absolute folder path on disk where all resources (courses, sections, notes, images) must be stored. Call this before creating any files or folders.");
 

@@ -1,174 +1,141 @@
-# Plan: Local Content Loading for MarkdownViewer in MAUI Hybrid App
+# Implementation Plan: Markdig Extension for Local Image Serving
 
 ## Problem Statement
 
-The MarkdownViewer (`MarkdownView.razor`) uses `PSC.Blazor.Components.MarkdownEditor` inside a MAUI BlazorWebView. When markdown references local images (e.g., `![](C:\Users\manojdixit\Downloads\image.jpg)`), the underlying WebView2 engine blocks `file:///` URLs at the browser security level **before** the `WebResourceRequested` event handler fires. This means the existing handler in `MainPage.xaml.cs` never gets a chance to intercept these requests.
+Markdown files contain **relative image paths** (e.g., `![diagram](Images/arch.png)`). When rendered in the BlazorWebView preview panel, the browser resolves these relative to the WebView's base URL (`https://0.0.0.0/`), not the markdown file's directory on disk. Images fail to load.
 
-**Key constraint:** Markdown files must remain compatible with other standard markdown readers — so images should use local file paths (relative or absolute), not HTTP-based or custom-scheme URLs in the source files.
+**Goal:** Rewrite image URLs at parse time via a custom Markdig extension so that `BlazorWebView_WebResourceRequested` can intercept and serve them from the local file system.
 
-## Root Cause Analysis
+**Key constraint:** Markdown files must remain compatible with other standard markdown readers — images use relative file paths in source. Only the rendered preview HTML gets rewritten.
 
-1. BlazorWebView hosts content at `https://0.0.0.1/` (internal origin)
-2. WebView2's security model prohibits navigation from an HTTPS origin to `file:///` URLs
-3. The block happens at the browser engine level, before `WebResourceRequested` fires
-4. The current handler in `MainPage.xaml.cs` is correct in concept but never receives these requests
+## Current Architecture
 
-## Options Analysis
+```
+MarkDownView.razor.cs
+  → ExtractContent(filePath) reads raw markdown from disk via ResourceResponse.Location
+  → Sets MarkDownContent (string)
 
-### Option 1: Custom FileProvider (via `CreateFileProvider` override)
-**Approach:** Subclass `BlazorWebView`, override `CreateFileProvider` to register local directories as static content roots. Pre-process markdown at render time to rewrite absolute local paths to relative paths the file provider can resolve.
+MonacoMarkdownEditor.razor.cs
+  → Left panel: Monaco editor (edits raw markdown)
+  → Right panel: CreateMarkupString() converts MD→HTML via Markdig + HtmlSanitizer
+  → @Html renders the preview
 
-**How it works:**
-- Create `CustomBlazorWebView : BlazorWebView` that overrides `CreateFileProvider`
-- Use `PhysicalFileProvider` + `CompositeFileProvider` to expose local directories
-- At render time, transform `C:\Users\manojdixit\Downloads\image.jpg` → `_local/Users/manojdixit/Downloads/image.jpg`
-- The file provider serves the file from the real filesystem path
+MainPage.xaml.cs
+  → WebResourceRequested intercepts /Notes/* requests
+  → Maps to local disk, serves with correct MIME type via ManagedStream
+```
 
-**Pros:**
-- Official MAUI API, well-supported
-- Efficient streaming (no base64 overhead)
-- Works naturally with BlazorWebView's content pipeline
-- Original markdown files stay untouched on disk
+**Key files:**
+- `src/KnowledgeLM.App/Components/Widgets/MarkDownView.razor.cs` — loads markdown
+- `src/KnowledgeLM.MonacoEditor/Components/MonacoMarkdownEditor.razor.cs` — renders preview
+- `src/KnowledgeLM.App/MainPage.xaml.cs` — serves local files
+- `src/KnowledgeLM.MonacoEditor/Markdown/MarkdownPipelineFactory.cs` — builds Markdig pipeline
 
-**Cons:**
-- Must pre-register root directories (e.g., drive roots or known folders)
-- Path rewriting logic needed in the rendering pipeline
-- Security consideration: exposes filesystem to WebView
+## Chosen Approach: Markdig Custom Extension (Option B)
 
-**Files to change:**
-- New: `CustomBlazorWebView.cs`
-- Edit: `MainPage.xaml` (use custom control)
-- Edit: `MarkdownView.razor` (add path transformation before rendering)
+Create a custom `IMarkdownExtension` that hooks into Markdig's `DocumentProcessed` event, walks the AST, and rewrites `LinkInline` nodes (where `IsImage=true`) from relative paths to `/LearnLoomResource?fullpath=<encoded-absolute-path>`.
 
----
+**Why this approach:**
+- Cleanest integration with Markdig pipeline — operates at the AST level
+- Handles all image syntax variants (including reference-style links)
+- No fragile HTML post-processing (regex on HTML)
+- Raw markdown stays portable — rewriting only affects the rendered output
 
-### Option 2: WebResourceRequested with Path Rewriting
-**Approach:** Pre-process markdown to rewrite local `file:///` paths to a custom URL pattern (e.g., `https://0.0.0.1/_localfile/C/Users/.../image.jpg`). The `WebResourceRequested` handler intercepts this pattern and serves the local file.
-
-**How it works:**
-- At render time, transform image paths: `C:\path\image.jpg` → `/_localfile/C/path/image.jpg`
-- In `WebResourceRequested`, detect `/_localfile/` prefix, reconstruct the real path, serve the file
-- Markdown source files remain untouched
-
-**Pros:**
-- Uses existing `WebResourceRequested` infrastructure already in `MainPage.xaml.cs`
-- More explicit control over which files are served
-- Can add access control/validation logic
-
-**Cons:**
-- URL rewriting at the markdown level adds complexity
-- Must handle the `WebViewWebResourceRequestedEventArgs` correctly (synchronous requirement)
-- The `WebResourceRequested` event only fires for requests to the BlazorWebView's origin host
-
-**Files to change:**
-- Edit: `MainPage.xaml.cs` (modify handler to detect `_localfile` prefix)
-- Edit: `MarkdownView.razor` (add path transformation)
+**Key design decision:** The pipeline is currently cached as a `static` field. Since `BaseDirectory` changes per document, we build a fresh pipeline with the extension when `BaseDirectory` is set. When not set, the cached default pipeline is used unchanged. Building a Markdig pipeline is lightweight, and this pattern already exists in the codebase.
 
 ---
-
-### Option 3: Base64 Data URL Injection at Render Time
-**Approach:** Pre-process markdown before passing to the editor — detect local image paths, read files, convert to `data:image/...;base64,...` URLs inline.
-
-**How it works:**
-- Regex scan markdown for `![...](local-path)` patterns
-- Read each referenced file, encode as base64
-- Replace the path with a data URI in the markdown string
-- Pass transformed markdown to `MarkdownEditor`
-
-**Pros:**
-- Simplest implementation, no infrastructure changes
-- Works on all platforms immediately
-- No security concerns (files read through C# with normal file permissions)
-- Original markdown files remain untouched
-
-**Cons:**
-- **Memory-intensive** for large images (base64 is ~33% larger than binary)
-- Slow for many/large images
-- Not suitable for video or large assets
-- MarkdownEditor may struggle with very large value strings
-
-**Files to change:**
-- Edit: `MarkdownView.razor` (add preprocessing logic)
-- Potentially new: `Helpers/MarkdownImageProcessor.cs`
-
----
-
-### Option 4: JavaScript Interop with Blob URLs
-**Approach:** After markdown renders to HTML, use JS interop to find `<img>` elements with failed `file:///` sources, read the files via C# interop, create Blob URLs in JavaScript, and update the image sources.
-
-**How it works:**
-- Let markdown render normally (images will fail to load)
-- JS mutation observer detects broken images
-- JS calls back to C# to read the file bytes
-- C# returns bytes, JS creates a Blob URL, updates `<img src>`
-
-**Pros:**
-- Efficient memory use (Blob URLs are managed by the browser)
-- No markdown preprocessing needed
-- Works with any markdown rendering library
-
-**Cons:**
-- Complex JS ↔ C# interop
-- Images briefly show as broken before loading
-- Requires custom JavaScript in the page
-- More moving parts, harder to debug
-
-**Files to change:**
-- New: `wwwroot/js/localImageLoader.js`
-- Edit: `wwwroot/index.html` (include script)
-- Edit: `MarkdownView.razor` (add JS interop calls)
-
----
-
-### Option 5: Hybrid — Custom FileProvider + Markdown Path Normalization Service
-**Approach:** Combine Option 1 with a dedicated service that manages path normalization. The service understands the local filesystem, normalizes paths, and the FileProvider serves content.
-
-**How it works:**
-- `LocalContentService` manages mappings of local directories to virtual paths
-- Custom `BlazorWebView` exposes those directories via `CreateFileProvider`
-- `MarkdownRenderService` normalizes image paths in markdown before rendering
-- Paths like `C:\Users\x\Downloads\img.jpg` → `/local-content/downloads/img.jpg`
-- FileProvider maps `/local-content/downloads/` → `C:\Users\x\Downloads\`
-
-**Pros:**
-- Clean separation of concerns
-- Reusable across multiple components
-- Efficient file serving
-- Extensible for future needs (video, PDF, etc.)
-
-**Cons:**
-- Most complex to implement
-- Requires user to configure/approve directory access
-
-**Files to change:**
-- New: `CustomBlazorWebView.cs`
-- New: `Services/LocalContentService.cs`
-- New: `Helpers/MarkdownPathNormalizer.cs`
-- Edit: `MainPage.xaml`
-- Edit: `MarkdownView.razor`
-- Edit: `MauiProgram.cs` (register service)
-
----
-
-## Recommendation
-
-**Option 2 (WebResourceRequested with Path Rewriting)** is recommended as the starting point for a PoC because:
-
-1. It builds on the existing `WebResourceRequested` handler already in `MainPage.xaml.cs`
-2. It requires minimal new infrastructure
-3. It keeps image serving explicit and auditable
-4. The markdown source files remain untouched — transformation happens only at render time
-5. The path rewriting in the markdown string is straightforward (regex replacement)
-
-If Option 2 encounters issues (e.g., `WebResourceRequested` doesn't fire for internal-origin URLs), **Option 1 (Custom FileProvider)** is the fallback — it uses the official MAUI API and is well-documented.
-
-**Option 3 (Base64)** is a quick-and-dirty fallback for immediate testing but should not be the long-term solution.
 
 ## Implementation Todos
 
-1. **research-webresourcerequested-scope** — Verify whether `WebResourceRequested` fires for requests to paths under the BlazorWebView's own origin (e.g., `https://0.0.0.1/_localfile/...`). This determines if Option 2 is viable.
-2. **create-markdown-path-rewriter** — Build a helper that transforms local file paths in markdown to virtual paths (`/_localfile/...` or relative paths depending on chosen option)
-3. **update-webresource-handler** — Update `MainPage.xaml.cs` handler to detect and serve `_localfile` requests (Option 2) OR create `CustomBlazorWebView` with FileProvider (Option 1)
-4. **integrate-with-markdownview** — Wire up the path rewriting in `MarkdownView.razor` so markdown is pre-processed before passing to `MarkdownEditor`
-5. **test-cross-platform** — Verify the solution works on Windows (primary target) and note any platform-specific considerations
-6. **fallback-base64-poc** — (Optional) Implement base64 fallback as a quick proof-of-concept for immediate testing
+### 1. Create `LocalImageLinkExtension`
+
+**New file:** `src/KnowledgeLM.MonacoEditor/Markdown/LocalImageLinkExtension.cs`
+
+A proper `IMarkdownExtension` that:
+- Takes `baseDirectory` (the markdown file's parent directory) in its constructor
+- In `Setup(MarkdownPipelineBuilder)`, registers a `DocumentProcessed` handler
+- The handler walks `document.Descendants<LinkInline>()` for images with relative URLs
+- Resolves each relative path against `baseDirectory` using `Path.GetFullPath(Path.Combine(...))`
+- Rewrites URL to `/LearnLoomResource?fullpath={Uri.EscapeDataString(fullPath)}`
+- Skips absolute URLs (`Uri.IsWellFormedUriString`) and already-rooted paths (`StartsWith("/")`)
+
+```csharp
+public class LocalImageLinkExtension : IMarkdownExtension
+{
+    private readonly string _baseDirectory;
+
+    public LocalImageLinkExtension(string baseDirectory)
+    {
+        _baseDirectory = baseDirectory;
+    }
+
+    public void Setup(MarkdownPipelineBuilder pipeline)
+    {
+        pipeline.DocumentProcessed += RewriteImageUrls;
+    }
+
+    public void Setup(MarkdownPipeline pipeline, IMarkdownRenderer renderer) { }
+
+    private void RewriteImageUrls(MarkdownDocument document)
+    {
+        foreach (var link in document.Descendants<LinkInline>())
+        {
+            if (!link.IsImage || string.IsNullOrEmpty(link.Url))
+                continue;
+            if (Uri.IsWellFormedUriString(link.Url, UriKind.Absolute) || link.Url.StartsWith("/"))
+                continue;
+
+            var fullPath = Path.GetFullPath(Path.Combine(_baseDirectory, link.Url));
+            link.Url = $"/LearnLoomResource?fullpath={Uri.EscapeDataString(fullPath)}";
+        }
+    }
+}
+```
+
+### 2. Add `BaseDirectory` parameter to `MonacoMarkdownEditor`
+
+**Edit:** `src/KnowledgeLM.MonacoEditor/Components/MonacoMarkdownEditor.razor.cs`
+
+- Add `[Parameter] public string? BaseDirectory { get; set; }`
+- Modify `GetMarkdownPipeline()`: when `BaseDirectory` is set, build a fresh pipeline with legacy defaults + `LocalImageLinkExtension`
+- When `BaseDirectory` is null/empty, use existing cached pipeline (no behavior change)
+- When both `MarkdownOptions` and `BaseDirectory` are set, use factory with extension
+
+### 3. Update `MarkdownPipelineFactory`
+
+**Edit:** `src/KnowledgeLM.MonacoEditor/Markdown/MarkdownPipelineFactory.cs`
+
+Add optional `baseDirectory` parameter to `BuildPipeline()` so the extension is included when both `MarkdownOptions` and `BaseDirectory` are provided.
+
+### 4. Pass `ResourceResponse.Location` from `MarkDownView`
+
+**Edit:** `src/KnowledgeLM.App/Components/Widgets/MarkDownView.razor`
+
+```razor
+<MonacoMarkdownEditor Markdown="@MarkDownContent"
+                      BaseDirectory="@(System.IO.Path.GetDirectoryName(ResourceResponse?.Location))"
+                      MarkdownChanged="@OnChanged" />
+```
+
+### 5. Handle `/LearnLoomResource` in `MainPage.xaml.cs`
+
+**Edit:** `src/KnowledgeLM.App/MainPage.xaml.cs`
+
+- Check for `/LearnLoomResource` path prefix
+- Parse & URL-decode the `fullpath` query parameter
+- Serve the file with correct MIME type using existing `ManagedStream` pattern
+- Extend MIME types for `.gif`, `.svg`, `.webp`, `.bmp`
+
+### 6. Verify HtmlSanitizer allows rewritten URLs
+
+HtmlSanitizer's default config allows relative URLs. Rewritten URLs (`/LearnLoomResource?fullpath=...`) are relative paths so should pass through. Verify and add config if needed.
+
+---
+
+## Key Considerations
+
+- **Editor vs Preview:** Only preview HTML gets rewritten. Monaco editor shows original relative paths — saves remain portable.
+- **URL Encoding:** `Uri.EscapeDataString()` handles Windows backslashes, spaces, and Unicode.
+- **HtmlSanitizer:** Rewrite happens during Markdig parsing (before sanitization in `CreateMarkupString`). Relative URLs pass through by default.
+- **Performance:** Fresh pipeline per render is negligible cost (~microseconds).
+- **Pipeline caching:** When `BaseDirectory` is set, pipeline is not cached. When not set, existing caching behavior is preserved.
