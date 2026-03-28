@@ -1,4 +1,5 @@
 using GitHub.Copilot.SDK;
+using KnowledgeLM.App.Helpers;
 using KnowledgeLM.App.Models;
 using KnowledgeLM.App.Models.AI;
 using KnowledgeLM.App.Services;
@@ -57,44 +58,7 @@ public partial class HarvestChatPane : IDisposable
 
     private async Task InitializeSession()
     {
-        var systemPrompt = """
-            You are a RAG-powered study assistant for the KnowledgeLM notebook app. 
-            Your job is to help users understand and learn from their notes.
-            
-            You have access to these tools:
-            - get_current_context: Get the currently scoped resource/section/course. Always call this first to understand what the user is looking at.
-            - search_notes: Search through the user's vectorized notebook content. Use IDs from get_current_context to scope your search.
-            - get_flashcards: Get flashcards for a resource
-            - save_flashcards: Save generated flashcards
-            - get_quizzes: Get quiz questions for a resource
-            - save_quizzes: Save generated quiz questions
-            - generate_podcast_audio: Generate podcast audio from SSML
-            - save_podcast: Save podcast metadata
-            
-            When answering questions:
-            1. Always call get_current_context first to see what resource the user has selected
-            2. Use search_notes with the appropriate scope IDs to find relevant content
-            3. Cite your sources with markdown links when possible
-            
-            When generating flashcards:
-            1. Call get_current_context to get the current resource ID
-            2. Use search_notes to retrieve the content
-            3. Create Q&A pairs and save them using save_flashcards with the resource ID from context
-            
-            When generating quizzes:
-            1. Call get_current_context to get the current resource ID
-            2. Use search_notes to retrieve the content
-            3. Create 5-10 multiple-choice questions, each with 4 options, a correctOptionIndex (zero-based), and an explanation
-            4. Save them using save_quizzes with the resource ID from context
-            
-            When generating podcasts:
-            1. Call get_current_context to get the current resource ID
-            2. Use search_notes to retrieve the content
-            3. Create a conversational SSML script with two speakers
-            4. Generate audio using generate_podcast_audio and save metadata using save_podcast
-            
-            Format your responses in Markdown.
-            """;
+        var systemPrompt = AgentStatics.HarvestPaneSystemPrompt;
 
         await CopilotService.CreateSessionAsync(systemPrompt, onEvent: HandleSessionEvent);
         // This can be an issue and not real representation of state
@@ -236,9 +200,9 @@ public partial class HarvestChatPane : IDisposable
     {
         var prompt = type switch
         {
-            "flashcards" => "Generate flashcards for the currently scoped resource. Use get_current_context to find the resource, search the notes content, create Q&A pairs, and save them using save_flashcards.",
-            "podcast" => "Generate a podcast for the currently scoped resource. Use get_current_context to find the resource, search the notes content, create a conversational SSML script with two speakers (en-US-AndrewMultilingualNeural and en-US-AvaMultilingualNeural), generate the audio using generate_podcast_audio, and save the metadata using save_podcast.",
-            "quiz" => "Generate a multiple-choice quiz for the currently scoped resource. Use get_current_context to find the resource, search the notes content, create 5-10 multiple-choice questions each with 4 options, a correct answer index (zero-based), and a brief explanation. Save them using save_quizzes.",
+            "flashcards" => AgentStatics.FlashCardPrompt,
+            "podcast" => AgentStatics.QuizPrompt,
+            "quiz" => AgentStatics.PodcastPrompt,
             _ => string.Empty
         };
 

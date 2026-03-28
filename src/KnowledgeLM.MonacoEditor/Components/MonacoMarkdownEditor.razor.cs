@@ -46,6 +46,14 @@ namespace KnowledgeLM.MonacoEditor.Components
         [Parameter]
         public MarkdownOptions? MarkdownOptions { get; set; }
 
+        /// <summary>
+        /// The base directory for resolving relative image paths in markdown.
+        /// When set, relative image URLs are rewritten to /LearnLoomResource?fullpath=...
+        /// so they can be served by BlazorWebView's WebResourceRequested handler.
+        /// </summary>
+        [Parameter]
+        public string? BaseDirectory { get; set; }
+
         [Parameter]
         public MonacoOptions Options { get; set; } = new();
 
@@ -273,6 +281,23 @@ namespace KnowledgeLM.MonacoEditor.Components
 
         private MarkdownPipeline GetMarkdownPipeline()
         {
+            // When BaseDirectory is set, build a fresh pipeline with the image rewriting extension.
+            // The pipeline is not cached because BaseDirectory is per-document.
+            if (!string.IsNullOrEmpty(BaseDirectory))
+            {
+                if (MarkdownOptions is not null)
+                {
+                    return MarkdownPipelineFactory.BuildPipeline(MarkdownOptions, BaseDirectory);
+                }
+
+                return new MarkdownPipelineBuilder()
+                    .UseAdvancedExtensions()
+                    .UseGenericAttributes()
+                    .UseYamlFrontMatter()
+                    .Use(new LocalImageLinkExtension(BaseDirectory))
+                    .Build();
+            }
+
             if (MarkdownOptions is null)
             {
                 return defaultMarkdownPipeline_ ??= CreateLegacyDefaultPipeline();

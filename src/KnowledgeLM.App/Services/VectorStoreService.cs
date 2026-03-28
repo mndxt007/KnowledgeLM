@@ -1,4 +1,5 @@
 using KnowledgeLM.App.Data;
+using KnowledgeLM.App.Helpers;
 using KnowledgeLM.App.Models.AI;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.AI;
@@ -35,7 +36,7 @@ public class VectorStoreService
         _embeddingGenerator = embeddingGenerator;
         _logger = logger;
         _notifications = notifications;
-        var vectorDbPath = Path.Combine(FileSystem.AppDataDirectory, "knowledgelm_vectors.db");
+        var vectorDbPath = AgentStatics.VectorDBPath;
         _vectorDbConnectionString = $"Data Source={vectorDbPath}";
     }
 
