@@ -1,8 +1,12 @@
 ﻿
 
 @inherits LayoutComponentBase
+@using KnowledgeLM.App.Services
+@inject AppNotificationService NotificationService
+@inject IToastService ToastService
+@implements IDisposable
 
-<FluentToastProvider Position="ToastPosition.BottomLeft" />
+<FluentToastProvider Position="ToastPosition.BottomRight" />
 <FluentDialogProvider />
 <FluentTooltipProvider />
 <FluentMessageBarProvider />
@@ -27,3 +31,31 @@
             </FluentBodyContent>
     </FluentStack>
 </FluentLayout>
+
+@code {
+    protected override void OnInitialized()
+    {
+        NotificationService.OnNotification += HandleNotification;
+    }
+
+    private void HandleNotification(AppNotification notification)
+    {
+        InvokeAsync(() =>
+        {
+            var intent = notification.Type switch
+            {
+                AppNotificationType.Success => ToastIntent.Success,
+                AppNotificationType.Error => ToastIntent.Error,
+                AppNotificationType.Progress => ToastIntent.Progress,
+                AppNotificationType.Info => ToastIntent.Info,
+                _ => ToastIntent.Info
+            };
+            ToastService.ShowToast(intent, notification.Message);
+        });
+    }
+
+    public void Dispose()
+    {
+        NotificationService.OnNotification -= HandleNotification;
+    }
+}
