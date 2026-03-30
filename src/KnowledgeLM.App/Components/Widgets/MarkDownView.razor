@@ -36,6 +36,7 @@
         </div>
         <FluentCard Style="box-shadow: 0 4px 8px var(--accent-fill-rest); border-radius: 4px; flex: 1; min-height: 0;" Class="m-2">
             <MonacoMarkdownEditor Markdown="@MarkDownContent"
+                                  BaseDirectory="@(System.IO.Path.GetDirectoryName(ResourceResponse?.Location))"
                                   MarkdownChanged="@OnChanged" />
         </FluentCard>
     }
