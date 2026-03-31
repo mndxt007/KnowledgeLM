@@ -73,7 +73,7 @@ namespace KnowledgeLM.App.Helpers
             For each logical section of the content:
             1. **Create a section** via `create_section` with the courseId, section name, description, and set location to the folder path on disk.
             2. **Navigate** to that section's content using `browser_click` or `browser_navigate` if it's on a separate page.
-            3. **Take a screenshot** via `browser_screenshot` and save it to the section's `images/` folder. Take screenshots of key content: main page, each section/chapter/module, important diagrams or code snippets at the right moment. Also maximize the browser window before taking screenshots to capture as much content as possible.
+            3. **Take a screenshot** via `browser_screenshot` and save it to the section's `images/` folder. 
             4. **Extract text content** using `browser_snapshot` to read the page's accessible content.
             5. **Write a `notes.md`** file in the section folder with:
                - A heading matching the section name
@@ -96,7 +96,7 @@ namespace KnowledgeLM.App.Helpers
             ## Rules
 
             1. **Always create database entries.** Every course, section, and resource MUST be registered via the create tools. The files on disk and the database must stay in sync.
-            2. **Screenshot generously.** Capture each distinct page, slide, or visual. Screenshots are more valuable than text for visual content. Make sure to capture diagrams, code snippets, and anything that looks important, at the right moment.
+            2. **Screenshot generously.** Capture each distinct page, slide, or visual. Screenshots are more valuable than text for visual content. 
             3. **Use descriptive file names.** `01-introduction.png`, not `screenshot1.png`. `02-data-types/notes.md`, not `section2/notes.md`.
             4. **Set the `location` field** to the absolute path on disk for sections and resources, and to the source URL for the course.
             5. **Handle pagination/scrolling.** If content extends below the fold, scroll and take multiple screenshots. If content spans multiple pages, navigate to each.
