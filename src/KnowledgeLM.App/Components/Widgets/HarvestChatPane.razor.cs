@@ -6,8 +6,8 @@ using KnowledgeLM.App.Services;
 using Markdig;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
+using Microsoft.Extensions.Logging;
 using Microsoft.JSInterop;
-using System.Collections.Concurrent;
 using FluentColor = Microsoft.FluentUI.AspNetCore.Components.Color;
 
 namespace KnowledgeLM.App.Components.Widgets;
@@ -20,13 +20,22 @@ public partial class HarvestChatPane : IDisposable
     [Inject] private PodcastService PodcastService { get; set; } = default!;
     [Inject] private FlashcardService FlashcardService { get; set; } = default!;
     [Inject] private QuizService QuizService { get; set; } = default!;
+    [Inject] private AppNotificationService Notifications { get; set; } = default!;
+    [Inject] private ILogger<HarvestChatPane> Logger { get; set; } = default!;
 
-    private BlockingCollection<CoPilotMessages> messages = new(new ConcurrentQueue<CoPilotMessages>());
+    private ICopilotSession? _session;
     private string queryText = string.Empty;
     private bool SendingMessage = false;
-    private FluentColor SessionStatus { get; set; } = FluentColor.Warning;
-    private bool AgentWorking { get; set; } = false;
-    private bool HasNoMessages => messages.Count == 0;
+
+    private IEnumerable<CoPilotMessages> messages => _session?.Messages ?? Enumerable.Empty<CoPilotMessages>();
+    private bool HasNoMessages => _session is null || !_session.HasMessages;
+    private bool AgentWorking => _session?.IsWorking ?? false;
+    private FluentColor SessionStatus => _session?.Status switch
+    {
+        CopilotSessionStatus.Active => FluentColor.Success,
+        CopilotSessionStatus.Error => FluentColor.Error,
+        _ => FluentColor.Warning,
+    };
 
     private Podcast? activePodcast;
     private bool showPodcastPlayer = false;
@@ -58,87 +67,69 @@ public partial class HarvestChatPane : IDisposable
 
     private async Task InitializeSession()
     {
-        var systemPrompt = AgentStatics.HarvestPaneSystemPrompt;
+        _session = await CopilotService.GetOrCreateSessionAsync(
+            CopilotPaneKey.Harvest,
+            AgentStatics.HarvestPaneSystemPrompt);
 
-        await CopilotService.CreateSessionAsync(systemPrompt, onEvent: HandleSessionEvent);
-        // This can be an issue and not real representation of state
-        SessionStatus = FluentColor.Success;
+        _session.StateChanged += OnSessionStateChanged;
+        _session.OnEvent += HandleSessionEvent;
+
         await InvokeAsync(StateHasChanged);
+    }
+
+    private void OnSessionStateChanged()
+    {
+        _ = InvokeAsync(StateHasChanged);
     }
 
     private async Task HandleSessionEvent(SessionEvent evt)
     {
-        switch (evt)
+        // The handle already maintains messages and status; we only need to react to
+        // events that drive component-local behaviour (refreshing content availability
+        // after an assistant turn ends).
+        if (evt is AssistantTurnEndEvent)
         {
-            case AssistantMessageEvent assistantMsg:
-                await InvokeAsync(() =>
-                {
-                    messages.Add(new CoPilotMessages
-                    {
-                        EventType = evt.Type,
-                        Message = String.IsNullOrWhiteSpace(assistantMsg.Data.Content) ? "....." : assistantMsg.Data.Content,
-                        ReasoningText = assistantMsg.Data.ReasoningText ?? string.Empty
-                    });
-                    StateHasChanged();
-                });
-                break;
-            case UserMessageEvent userMsg:
-                await InvokeAsync(() =>
-                {
-                    messages.Add(new CoPilotMessages
-                    {
-                        EventType = evt.Type,
-                        Message = userMsg.Data.Content
-                    });
-                    StateHasChanged();
-                });
-                break;
-            case ToolExecutionStartEvent toolEvt:
-                await InvokeAsync(() =>
-                {
-                    messages.Add(new CoPilotMessages
-                    {
-                        EventType = evt.Type,
-                        Message = toolEvt.Data.ToolName
-                    });
-                    StateHasChanged();
-                });
-                break;
-            case SessionStartEvent:
-                await InvokeAsync(() => { SessionStatus = FluentColor.Success; StateHasChanged(); });
-                break;
-            case SessionShutdownEvent:
-            case SessionErrorEvent:
-                await InvokeAsync(() => { SessionStatus = FluentColor.Error; StateHasChanged(); });
-                break;
-            case AssistantTurnStartEvent:
-                await InvokeAsync(() => { AgentWorking = true; StateHasChanged(); });
-                break;
-            case AssistantTurnEndEvent:
-                await InvokeAsync(async () =>
-                {
-                    AgentWorking = false;
-                    await RefreshContentAvailability();
-                    StateHasChanged();
-                });
-                break;
-            case AbortEvent:
-                await InvokeAsync(() => { AgentWorking = false; StateHasChanged(); });
-                break;
+            await InvokeAsync(async () =>
+            {
+                await RefreshContentAvailability();
+                StateHasChanged();
+            });
         }
     }
 
     private async Task HandleQuery(string query)
     {
-        if (string.IsNullOrWhiteSpace(query)) return;
+        if (string.IsNullOrWhiteSpace(query) || _session is null) return;
 
         SendingMessage = true;
         await InvokeAsync(StateHasChanged);
 
-        await CopilotService.SendAsync(query);
-        SendingMessage = false;
-        queryText = string.Empty;
-        await InvokeAsync(StateHasChanged);
+        try
+        {
+            await _session.SendAsync(query);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Harvest SendAsync failed; restarting session");
+            Notifications.NotifyError($"Copilot error: {ex.Message}. Starting a new session…");
+
+            try
+            {
+                await _session.RestartAsync();
+                Notifications.NotifyInfo("A new Copilot session has been started.");
+            }
+            catch (Exception restartEx)
+            {
+                Logger.LogError(restartEx, "Failed to restart Harvest session after send failure");
+                Notifications.NotifyError($"Could not restart Copilot session: {restartEx.Message}");
+            }
+        }
+        finally
+        {
+            SendingMessage = false;
+            queryText = string.Empty;
+            await InvokeAsync(StateHasChanged);
+        }
     }
 
     private async Task HandleKeyDown(KeyboardEventArgs e)
@@ -155,16 +146,16 @@ public partial class HarvestChatPane : IDisposable
         return Markdown.ToHtml(markdown, MarkdownPipeline);
     }
 
-    private async void NewSession(MouseEventArgs args)
+    private async Task NewSession(MouseEventArgs args)
     {
-        messages = new(new ConcurrentQueue<CoPilotMessages>());
-        CopilotService.ResetSession();
-        await InitializeSession();
+        if (_session is null) return;
+        await _session.RestartAsync();
     }
 
     private async Task AbortSession(MouseEventArgs args)
     {
-        await CopilotService.AbortAsync();
+        if (_session is null) return;
+        await _session.AbortAsync();
     }
 
     private void ClearScope()
@@ -285,6 +276,12 @@ public partial class HarvestChatPane : IDisposable
 
     public void Dispose()
     {
+        if (_session is not null)
+        {
+            _session.StateChanged -= OnSessionStateChanged;
+            _session.OnEvent -= HandleSessionEvent;
+        }
+
         HarvestState.OnScopeChanged -= OnScopeChanged;
         HarvestState.OnContentAvailabilityChanged -= OnContentAvailabilityChanged;
     }

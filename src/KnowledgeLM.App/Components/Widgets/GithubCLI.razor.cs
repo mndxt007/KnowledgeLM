@@ -1,56 +1,41 @@
-﻿using GitHub.Copilot.SDK;
+using GitHub.Copilot.SDK;
 using KnowledgeLM.App.Helpers;
 using KnowledgeLM.App.Models;
 using KnowledgeLM.App.Services;
+using Markdig;
 using Microsoft.AspNetCore.Components;
-using Microsoft.Extensions.AI;
+using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.Logging;
 using Microsoft.JSInterop;
-using Microsoft.SemanticKernel;
-using Markdig;
-using Microsoft.AspNetCore.Components.Web;
-using System.Collections.Concurrent;
-using System.Diagnostics;
-using System.Net.Sockets;
 using FluentColor = Microsoft.FluentUI.AspNetCore.Components.Color;
 
 namespace KnowledgeLM.App.Components.Widgets
 {
     partial class GithubCLI : IAsyncDisposable
     {
-        [Inject] 
-        IJSRuntime JS { get; set; } = default!;
-        [Inject]
-        private NotesCRUDService CrudService { get; set; } = default!;
-        [Inject]
-        private StateService StateService { get; set; } = default!;
-        [Inject]
-        private Kernel Kernel { get; set; } = default!;
-        private bool HasNoCopilotMesssages => cardText.Count == 0;
+        [Inject] private IJSRuntime JS { get; set; } = default!;
+        [Inject] private NotesCRUDService CrudService { get; set; } = default!;
+        [Inject] private StateService StateService { get; set; } = default!;
+        [Inject] private CopilotService CopilotService { get; set; } = default!;
+        [Inject] private AppNotificationService Notifications { get; set; } = default!;
+        [Inject] private ILogger<GithubCLI> Logger { get; set; } = default!;
 
-        private CopilotClient? ghcpClient;
-        private CopilotSession? session;
-        private BlockingCollection<CoPilotMessages> cardText = new(new ConcurrentQueue<CoPilotMessages>());
+        private ICopilotSession? _session;
         private string queryText = string.Empty;
         private bool SendingMessage = false;
-        [Inject]
-        private ILogger<CopilotClient> CopilotLogger { get; set; } = default!;
-        private FluentColor SessionStatus { get; set; } = FluentColor.Warning;
 
-        private bool AgentWorking { get; set; } = false;
+        private IEnumerable<CoPilotMessages> cardText => _session?.Messages ?? Enumerable.Empty<CoPilotMessages>();
+        private bool HasNoMessages => _session is null || !_session.HasMessages;
+        private bool AgentWorking => _session?.IsWorking ?? false;
+        private FluentColor SessionStatus => _session?.Status switch
+        {
+            CopilotSessionStatus.Active => FluentColor.Success,
+            CopilotSessionStatus.Error => FluentColor.Error,
+            _ => FluentColor.Warning,
+        };
 
         protected override void OnInitialized()
         {
-            ghcpClient = new CopilotClient(new()
-            {
-                UseLoggedInUser = true,
-                //CliPath = "C:\\Users\\manojdixit\\AppData\\Local\\Microsoft\\WinGet\\Links\\copilot.exe",
-                Logger = CopilotLogger,
-                //LogLevel = "debug",
-                //CliArgs = ["--log-dir", "D:\\LearnLoom\\Logs"]
-
-            });
-
             StateService.OnRefreshRequested += OnRefreshRequested;
         }
 
@@ -59,187 +44,80 @@ namespace KnowledgeLM.App.Components.Widgets
             await InvokeAsync(StateHasChanged);
         }
 
-        public async ValueTask DisposeAsync()
-        {
-            StateService.OnRefreshRequested -= OnRefreshRequested;
-            await ValueTask.CompletedTask;
-        }
-
-        private IList<AIFunction> GetAIFunctions()
-        {
-            //convert from Kernel to AIFunction
-            List<AIFunction> aiFunctions = new List<AIFunction>();
-
-            foreach (var plugin in Kernel.Plugins)
-            {
-                foreach (var function in plugin)
-                {
-                    aiFunctions.Add(function);
-                }
-
-            }
-
-            var getNotesFolderTool = AIFunctionFactory.Create(
-                () => AgentStatics.LearnLoomRoot,
-                name: "get_notes_folder",
-                description: "Returns the absolute folder path on disk where all resources (courses, sections, notes, images) must be stored. Call this before creating any files or folders.");
-
-            aiFunctions.Add(getNotesFolderTool);
-
-            return aiFunctions;
-        }
-
         protected override async Task OnAfterRenderAsync(bool firstRender)
         {
             if (firstRender)
             {
-                await CreateNewSession();
+                await InitializeSession();
             }
 
             await JS.InvokeVoidAsync("scrollToBottom", "AgentMessages");
         }
 
-        private async Task CreateNewSession()
+        private async Task InitializeSession()
         {
-            if(ghcpClient is not null)
+            var mcpServers = new Dictionary<string, object>
             {
-                session = await ghcpClient.CreateSessionAsync(new SessionConfig
+                ["playwright"] = new McpLocalServerConfig
                 {
-                    Tools = GetAIFunctions(),
-                    OnPermissionRequest = PermissionHandler.ApproveAll,
+                    Type = "local",
+                    Command = "npx",
+                    Args = [
+                        "@playwright/mcp@latest",
+                        "--browser",
+                        "msedge",
+                    ],
+                    Tools = new List<string> { "*" },
+                }
+            };
 
-                    SystemMessage = new()
-                    {
-                        Content = AgentStatics.NotesPaneSystemPrompt,
-                        Mode = SystemMessageMode.Replace,
+            _session = await CopilotService.GetOrCreateSessionAsync(
+                CopilotPaneKey.Notes,
+                AgentStatics.NotesPaneSystemPrompt,
+                mcpServers);
 
-                    },
-                    McpServers = new Dictionary<string, object>
-                    {
-                        ["playwright"] = new McpLocalServerConfig
-                        {
-                            Type = "local",
-                            Command = "npx",
-                            Args = [
-                               "@playwright/mcp@latest",
-                                "--browser",
-                                "msedge",
-                                //"--user-data-dir",
-                               //Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Microsoft", "Edge", "User Data")
-                               ],
-                            Tools = new List<string> { "*" },
-                            //Env = new Dictionary<string, string>
-                            //{
-                            //    ["NODE_DEBUG"] = "mcp",
-                            //    ["DEBUG"] = "*",
-                            //    ["MCP_DEBUG"] = "1",
+            _session.StateChanged += OnSessionStateChanged;
+            await InvokeAsync(StateHasChanged);
+        }
 
-                            //},
-
-                        }
-                    },
-                });
-                // Session already started by the time CreateSessionAsync returns,
-                // so SessionStartEvent may have fired before .On() subscription.
-                SessionStatus = FluentColor.Success;
-                await InvokeAsync(StateHasChanged);
-
-                session.On(async evt =>
-                {
-                    switch (evt)
-                    {
-                        case AssistantMessageEvent assistantMessageEvent:
-                            await InvokeAsync(() =>
-                            {
-                                cardText.Add(new()
-                                {
-                                    EventType = evt.Type,
-                                    Message = String.IsNullOrWhiteSpace(assistantMessageEvent.Data.Content) ? "....." : assistantMessageEvent.Data.Content,
-                                    ReasoningText = assistantMessageEvent.Data.ReasoningText ?? string.Empty
-                                });
-                                StateHasChanged();
-                            });
-                            break;
-                        case UserMessageEvent userMessageEvent:
-                            await InvokeAsync(() =>
-                            {
-                                cardText.Add(new()
-                                {
-                                    EventType = evt.Type,
-                                    Message = userMessageEvent.Data.Content
-                                });
-                                StateHasChanged();
-                            });
-                            break;
-                        case ToolExecutionStartEvent toolExecutionCompleteEvent:
-                            await InvokeAsync(() =>
-                            {
-                                cardText.Add(new()
-                                {
-                                    EventType = evt.Type,
-                                    Message = toolExecutionCompleteEvent.Data.ToolName
-                                });
-                                StateHasChanged();
-                            });
-                            break;
-                        case SessionStartEvent:
-                        case SessionResumeEvent:
-                            await InvokeAsync(() =>
-                            {
-                                SessionStatus = FluentColor.Success;
-                                StateHasChanged();
-                            });
-                            break;
-                        case SessionShutdownEvent:
-                        case SessionErrorEvent:
-                            await InvokeAsync(() =>
-                            {
-                                SessionStatus = FluentColor.Error;
-                                StateHasChanged();
-                            });
-                            break;
-                        case AssistantTurnStartEvent:
-                            CopilotLogger.LogInformation("Assistant Started Working");
-                            await InvokeAsync(() =>
-                            {
-                                AgentWorking = true;
-                                StateHasChanged();
-                            });
-                            break;
-                        case AssistantTurnEndEvent:
-                        case AbortEvent:
-                            CopilotLogger.LogInformation("Assistant Turn ended");
-                            await InvokeAsync(() =>
-                            {
-                                AgentWorking = false;
-                                StateHasChanged();
-                            });
-                            break;
-                    }
-                });
-            }
-            
+        private void OnSessionStateChanged()
+        {
+            _ = InvokeAsync(StateHasChanged);
         }
 
         private async Task HandleQuery(string query)
         {
-            if(session!=null)
+            if (_session is null || string.IsNullOrWhiteSpace(query)) return;
+
+            SendingMessage = true;
+            await InvokeAsync(StateHasChanged);
+
+            try
             {
-                SendingMessage = true;
-                await InvokeAsync(StateHasChanged);
-                //await session.SendAndWaitAsync(new MessageOptions { Prompt = query });
-                await session.SendAsync(
-                    new MessageOptions 
-                    { 
-                        Prompt = query,
-                        Mode = "immediate"
-                    }
-                    );
-                SendingMessage = false;
-                await InvokeAsync(StateHasChanged);
-                queryText = String.Empty;
+                await _session.SendAsync(query);
             }
-            
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Notes SendAsync failed; restarting session");
+                Notifications.NotifyError($"Copilot error: {ex.Message}. Starting a new session…");
+
+                try
+                {
+                    await _session.RestartAsync();
+                    Notifications.NotifyInfo("A new Copilot session has been started.");
+                }
+                catch (Exception restartEx)
+                {
+                    Logger.LogError(restartEx, "Failed to restart Notes session after send failure");
+                    Notifications.NotifyError($"Could not restart Copilot session: {restartEx.Message}");
+                }
+            }
+            finally
+            {
+                SendingMessage = false;
+                queryText = string.Empty;
+                await InvokeAsync(StateHasChanged);
+            }
         }
 
         private static readonly MarkdownPipeline MarkdownPipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
@@ -259,21 +137,27 @@ namespace KnowledgeLM.App.Components.Widgets
             return Markdown.ToHtml(markdown, MarkdownPipeline);
         }
 
-
-
-        private void NewSession(Microsoft.AspNetCore.Components.Web.MouseEventArgs args)
+        private async Task NewSession(MouseEventArgs args)
         {
-            cardText = new(new ConcurrentQueue<CoPilotMessages>());
-            _ = CreateNewSession();
+            if (_session is null) return;
+            await _session.RestartAsync();
         }
-        private async Task AbortSession(Microsoft.AspNetCore.Components.Web.MouseEventArgs args)
+
+        private async Task AbortSession(MouseEventArgs args)
         {
-            if(session is not null)
+            if (_session is null) return;
+            await _session.AbortAsync();
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            if (_session is not null)
             {
-                await session.AbortAsync();
+                _session.StateChanged -= OnSessionStateChanged;
             }
+
+            StateService.OnRefreshRequested -= OnRefreshRequested;
+            await ValueTask.CompletedTask;
         }
     }
-
-    
 }

@@ -16,7 +16,7 @@
                 <FluentIcon Value="@(new Icons.Filled.Size20.Circle())" Color="@SessionStatus" />
             </FluentButton>
             <FluentButton Appearance="Appearance.Stealth" Title="New session"
-                          Disabled="HasNoCopilotMesssages" OnClick="NewSession">
+                          Disabled="HasNoMessages" OnClick="NewSession">
                 <FluentIcon Value="@(new Icons.Regular.Size20.AddCircle())" Color="@Color.Accent" />
             </FluentButton>
             <FluentButton Appearance="Appearance.Stealth" Title="Abort"
@@ -28,7 +28,7 @@
 
     @* ── Messages area ── *@
     <div class="chat-messages @(AgentWorking ? "chat-messages--glowing" : "")" id="AgentMessages">
-        @if (HasNoCopilotMesssages)
+        @if (HasNoMessages)
         {
             <div class="chat-empty">
                 <FluentIcon Value="@(new Icons.Regular.Size48.ChatSparkle())" Color="@Color.Accent" />

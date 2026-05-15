@@ -1,130 +1,92 @@
+using System.Collections.Concurrent;
 using GitHub.Copilot.SDK;
-using KnowledgeLM.App.Helpers;
-using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
 
 namespace KnowledgeLM.App.Services
 {
+    /// <summary>
+    /// Factory/cache for <see cref="ICopilotSession"/> instances. One session is kept per
+    /// <see cref="CopilotPaneKey"/> for the lifetime of the service, so chat history is retained
+    /// when Blazor components are torn down and re-created (e.g. when navigating between panes).
+    /// </summary>
     public class CopilotService : IAsyncDisposable
     {
         private readonly Kernel _kernel;
         private readonly ILogger<CopilotClient> _logger;
-        private CopilotClient? _client;
-        private CopilotSession? _session;
-
-        public bool HasActiveSession => _session is not null;
-        public bool IsWorking { get; private set; }
+        private readonly ConcurrentDictionary<CopilotPaneKey, CopilotSessionHandle> _sessions = new();
+        private readonly SemaphoreSlim _initLock = new(1, 1);
 
         public CopilotService(Kernel kernel, ILogger<CopilotClient> logger)
         {
             _kernel = kernel;
             _logger = logger;
-
-            _client = new CopilotClient(new()
-            {
-                UseLoggedInUser = true,
-                Logger = _logger,
-            });
         }
 
-        private IList<AIFunction> GetAIFunctions()
-        {
-            var aiFunctions = new List<AIFunction>();
-
-            foreach (var plugin in _kernel.Plugins)
-            {
-                foreach (var function in plugin)
-                {
-                    aiFunctions.Add(function);
-                }
-            }
-
-            var getNotesFolderTool = AIFunctionFactory.Create(
-                () => AgentStatics.LearnLoomRoot,
-                name: "get_notes_folder",
-                description: "Returns the absolute folder path on disk where all resources (courses, sections, notes, images) must be stored. Call this before creating any files or folders.");
-
-            aiFunctions.Add(getNotesFolderTool);
-
-            return aiFunctions;
-        }
-
-        public async Task CreateSessionAsync(
+        /// <summary>
+        /// Returns the cached session for <paramref name="key"/>, or creates a new one if none exists.
+        /// </summary>
+        public async Task<ICopilotSession> GetOrCreateSessionAsync(
+            CopilotPaneKey key,
             string systemPrompt,
-            Dictionary<string, object>? mcpServers = null,
-            Func<SessionEvent, Task>? onEvent = null)
+            Dictionary<string, object>? mcpServers = null)
         {
-            _client ??= new CopilotClient(new()
+            if (_sessions.TryGetValue(key, out var existing))
             {
-                UseLoggedInUser = true,
-                Logger = _logger,
-            });
+                return existing;
+            }
 
-            _session = await _client.CreateSessionAsync(new SessionConfig
+            await _initLock.WaitAsync();
+            try
             {
-                Tools = GetAIFunctions(),
-                OnPermissionRequest = PermissionHandler.ApproveAll,
-                SystemMessage = new()
+                if (_sessions.TryGetValue(key, out existing))
                 {
-                    Content = systemPrompt,
-                    Mode = SystemMessageMode.Replace,
-                },
-                McpServers = mcpServers,
-            });
-
-            _session.On(async evt =>
-            {
-                switch (evt)
-                {
-                    case AssistantTurnStartEvent:
-                        _logger.LogInformation("Assistant Started Working");
-                        IsWorking = true;
-                        break;
-                    case AssistantTurnEndEvent:
-                    case AbortEvent:
-                        _logger.LogInformation("Assistant Turn ended");
-                        IsWorking = false;
-                        break;
+                    return existing;
                 }
 
-                if (onEvent is not null)
-                {
-                    await onEvent(evt);
-                }
-            });
-        }
-
-        public async Task SendAsync(string prompt)
-        {
-            if (_session is not null)
+                var handle = new CopilotSessionHandle(_kernel, _logger, systemPrompt, mcpServers);
+                await handle.InitializeAsync();
+                _sessions[key] = handle;
+                return handle;
+            }
+            finally
             {
-                await _session.SendAsync(new MessageOptions
-                {
-                    Prompt = prompt,
-                    Mode = "immediate"
-                });
+                _initLock.Release();
             }
         }
 
-        public async Task AbortAsync()
+        /// <summary>Returns the cached session for <paramref name="key"/> if one exists.</summary>
+        public bool TryGetSession(CopilotPaneKey key, out ICopilotSession? session)
         {
-            if (_session is not null)
+            if (_sessions.TryGetValue(key, out var handle))
             {
-                await _session.AbortAsync();
+                session = handle;
+                return true;
             }
+
+            session = null;
+            return false;
         }
 
-        public void ResetSession()
+        /// <summary>Disposes and removes the cached session for <paramref name="key"/>, if any.</summary>
+        public async Task RemoveSessionAsync(CopilotPaneKey key)
         {
-            _session = null;
+            if (_sessions.TryRemove(key, out var handle))
+            {
+                await handle.DisposeAsync();
+            }
         }
 
         public async ValueTask DisposeAsync()
         {
-            _session = null;
-            _client = null;
-            await ValueTask.CompletedTask;
+            foreach (var handle in _sessions.Values)
+            {
+                await handle.DisposeAsync();
+            }
+
+
+            _sessions.Clear();
+            _initLock.Dispose();
         }
     }
 }
