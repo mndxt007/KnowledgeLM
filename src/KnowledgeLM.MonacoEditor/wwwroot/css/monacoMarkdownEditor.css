@@ -190,8 +190,10 @@
 
 .preview-panel-content hr {
     border: none;
-    border-top: 2px solid var(--neutral-stroke-divider-rest, #d0d0d0);
-    margin: 2rem 0;
+    border-top: 1px solid var(--neutral-stroke-divider-rest, #d0d0d0);
+    margin: 1.25rem 0;
+    height: 0;
+    background: transparent;
 }
 
 /* Dark theme - scrollbar */

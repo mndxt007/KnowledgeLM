@@ -23,6 +23,7 @@ namespace KnowledgeLM.MonacoEditor.Components
         private TextEditorSession? editorSession_;
         private DotNetObjectReference<MonacoMarkdownEditor>? dotNetRef_;
         private string editorId_ = $"monaco-markdown-editor-{Guid.NewGuid():N}";
+        private string previewId_ = $"monaco-markdown-preview-{Guid.NewGuid():N}";
         private bool isInitialized_;
         private string? previousMarkdown_;
 
@@ -168,6 +169,18 @@ namespace KnowledgeLM.MonacoEditor.Components
             }
 
             await base.OnAfterRenderAsync(firstRender);
+
+            if (isInitialized_)
+            {
+                try
+                {
+                    await JSRuntime.InvokeVoidAsync("monacoMarkdownEditor.renderMermaid", previewId_);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[MonacoMarkdownEditor] Error rendering mermaid: {ex.Message}");
+                }
+            }
         }
 
         private async Task ApplyMonacoOptionsAsync()

@@ -22,6 +22,34 @@ window.monacoMarkdownEditor = {
         console.log("[MonacoMarkdown] Front matter enabled:", this.frontMatterEnabled);
     },
 
+    /**
+     * Render any unprocessed mermaid diagrams within the given container.
+     * Markdig emits mermaid code fences as <pre class="mermaid">...</pre>; mermaid.js
+     * only auto-processes these at initial page load when startOnLoad is true, so for
+     * dynamic preview updates we have to call mermaid.run() against the new nodes.
+     */
+    renderMermaid: async function (containerId) {
+        if (!window.mermaid) {
+            return;
+        }
+
+        const root = containerId ? document.getElementById(containerId) : document;
+        if (!root) {
+            return;
+        }
+
+        const nodes = root.querySelectorAll('pre.mermaid:not([data-processed="true"])');
+        if (nodes.length === 0) {
+            return;
+        }
+
+        try {
+            await window.mermaid.run({ nodes: Array.from(nodes) });
+        } catch (err) {
+            console.warn('[MonacoMarkdown] Mermaid render failed:', err);
+        }
+    },
+
     getContentBasePath: function() {
         const baseElement = document.querySelector('base');
         const baseHref = baseElement ? baseElement.getAttribute('href') : '/';

@@ -76,7 +76,6 @@
 .preview-panel h4,
 .preview-panel h5,
 .preview-panel h6 {
-    margin-top: 1.5rem;
     margin-bottom: 0.75rem;
     font-weight: 600;
     line-height: 1.3;
@@ -84,6 +83,8 @@
 
 .preview-panel h1 {
     font-size: 2em;
+    text-align: center;
+    color: var(--accent-fill-rest);
     border-bottom: 2px solid var(--neutral-stroke-divider-rest, #d0d0d0);
     padding-bottom: 0.3rem;
 }
