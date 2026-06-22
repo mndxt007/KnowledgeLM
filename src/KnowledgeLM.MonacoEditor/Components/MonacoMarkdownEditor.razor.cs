@@ -25,6 +25,8 @@ namespace KnowledgeLM.MonacoEditor.Components
         private string editorId_ = $"monaco-markdown-editor-{Guid.NewGuid():N}";
         private string previewId_ = $"monaco-markdown-preview-{Guid.NewGuid():N}";
         private bool isInitialized_;
+        private bool isInitializing_;
+        private bool showEditor_;
         private string? previousMarkdown_;
 
         // =======================================================
@@ -128,58 +130,126 @@ namespace KnowledgeLM.MonacoEditor.Components
 
         protected override async Task OnAfterRenderAsync(bool firstRender)
         {
-            if (firstRender)
+            if (showEditor_ && !isInitialized_ && !isInitializing_)
             {
-                try
-                {
-                    if (BeforeCreated is not null)
-                    {
-                        await BeforeCreated.Invoke(JSRuntime);
-                    }
-
-                    await ApplyMonacoOptionsAsync();
-
-                    dotNetRef_ = DotNetObjectReference.Create(this);
-
-                    isInitialized_ = await JSRuntime.InvokeAsync<bool>(
-                        "monacoMarkdownEditor.init",
-                        editorId_,
-                        editorSession_?.Content ?? string.Empty,
-                        dotNetRef_);
-
-                    if (isInitialized_)
-                    {
-                        await UpdateCssIntelliSenseAsync();
-                        await InvokeAsync(StateHasChanged);
-
-                        if (AfterInitialized is not null)
-                        {
-                            var editorRef = await JSRuntime.InvokeAsync<IJSObjectReference>(
-                                "monacoMarkdownEditor.getEditor",
-                                editorId_);
-
-                            await AfterInitialized.Invoke(editorRef);
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"[MonacoMarkdownEditor] Error initializing: {ex.Message}");
-                }
+                await InitializeEditorAsync();
             }
 
             await base.OnAfterRenderAsync(firstRender);
 
-            if (isInitialized_)
+            await EnhancePreviewAsync();
+        }
+
+        /// <summary>
+        /// Runs client-side preview enhancers (mermaid diagrams and code syntax highlighting) against
+        /// the rendered HTML. Both helpers are idempotent and self-guard on their libraries, so this is
+        /// safe to call on every render and works whether or not the Monaco editor pane is shown.
+        /// </summary>
+        private async Task EnhancePreviewAsync()
+        {
+            try
             {
-                try
+                await JSRuntime.InvokeVoidAsync("monacoMarkdownEditor.renderMermaid", previewId_);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MonacoMarkdownEditor] Error rendering mermaid: {ex.Message}");
+            }
+
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("monacoMarkdownEditor.highlightCode", previewId_);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MonacoMarkdownEditor] Error highlighting code: {ex.Message}");
+            }
+        }
+
+        private async Task InitializeEditorAsync()
+        {
+            isInitializing_ = true;
+
+            try
+            {
+                if (BeforeCreated is not null)
                 {
-                    await JSRuntime.InvokeVoidAsync("monacoMarkdownEditor.renderMermaid", previewId_);
+                    await BeforeCreated.Invoke(JSRuntime);
                 }
-                catch (Exception ex)
+
+                await ApplyMonacoOptionsAsync();
+
+                dotNetRef_ ??= DotNetObjectReference.Create(this);
+
+                isInitialized_ = await JSRuntime.InvokeAsync<bool>(
+                    "monacoMarkdownEditor.init",
+                    editorId_,
+                    editorSession_?.Content ?? string.Empty,
+                    dotNetRef_);
+
+                if (isInitialized_)
                 {
-                    Console.WriteLine($"[MonacoMarkdownEditor] Error rendering mermaid: {ex.Message}");
+                    await UpdateCssIntelliSenseAsync();
+                    await InvokeAsync(StateHasChanged);
+
+                    if (AfterInitialized is not null)
+                    {
+                        var editorRef = await JSRuntime.InvokeAsync<IJSObjectReference>(
+                            "monacoMarkdownEditor.getEditor",
+                            editorId_);
+
+                        await AfterInitialized.Invoke(editorRef);
+                    }
                 }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MonacoMarkdownEditor] Error initializing: {ex.Message}");
+            }
+            finally
+            {
+                isInitializing_ = false;
+            }
+        }
+
+        /// <summary>
+        /// Toggles the Monaco editor pane between hidden (preview only) and visible (editor + preview).
+        /// The Monaco instance is created on demand the first time the editor is shown and disposed
+        /// when hidden so it re-initializes cleanly the next time it is opened.
+        /// </summary>
+        private async Task ToggleEditor()
+        {
+            if (showEditor_)
+            {
+                showEditor_ = false;
+                await DisposeEditorInstanceAsync();
+            }
+            else
+            {
+                showEditor_ = true;
+            }
+
+            StateHasChanged();
+        }
+
+        private async Task DisposeEditorInstanceAsync()
+        {
+            if (!isInitialized_)
+            {
+                return;
+            }
+
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("monacoMarkdownEditor.dispose", editorId_);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MonacoMarkdownEditor] Error disposing editor instance: {ex.Message}");
+            }
+            finally
+            {
+                isInitialized_ = false;
             }
         }
 
@@ -461,7 +531,7 @@ namespace KnowledgeLM.MonacoEditor.Components
 
         public async ValueTask DisposeAsync()
         {
-            if (isInitialized_ && dotNetRef_ != null)
+            if (isInitialized_)
             {
                 try
                 {
@@ -473,11 +543,12 @@ namespace KnowledgeLM.MonacoEditor.Components
                 }
                 finally
                 {
-                    dotNetRef_.Dispose();
-                    dotNetRef_ = null;
                     isInitialized_ = false;
                 }
             }
+
+            dotNetRef_?.Dispose();
+            dotNetRef_ = null;
         }
     }
 }

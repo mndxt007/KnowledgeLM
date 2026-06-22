@@ -50,6 +50,39 @@ window.monacoMarkdownEditor = {
         }
     },
 
+    /**
+     * Apply syntax highlighting to code blocks within the given container.
+     * Markdig emits fenced code as <pre><code class="language-xxx">...</code></pre>; highlight.js
+     * does not auto-process dynamically rendered content, so for preview updates we run it manually
+     * against the new <code> nodes. Mermaid fences and already-processed nodes are skipped so the
+     * call stays idempotent across re-renders.
+     */
+    highlightCode: function (containerId) {
+        if (!window.hljs) {
+            return;
+        }
+
+        const root = containerId ? document.getElementById(containerId) : document;
+        if (!root) {
+            return;
+        }
+
+        const nodes = root.querySelectorAll('pre code:not([data-highlighted="yes"])');
+
+        nodes.forEach((node) => {
+            // Skip mermaid diagram fences - those are handled by renderMermaid.
+            if (node.closest('pre.mermaid') || node.classList.contains('language-mermaid')) {
+                return;
+            }
+
+            try {
+                window.hljs.highlightElement(node);
+            } catch (err) {
+                console.warn('[MonacoMarkdown] Syntax highlight failed:', err);
+            }
+        });
+    },
+
     getContentBasePath: function() {
         const baseElement = document.querySelector('base');
         const baseHref = baseElement ? baseElement.getAttribute('href') : '/';

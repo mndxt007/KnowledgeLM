@@ -3,37 +3,64 @@
 
 
 <div class="monaco-markdown-editor-container">
-    <FluentLayout Style="height: 100%;">
-        <FluentSplitter Orientation="Orientation.Horizontal" 
-                        BarSize="6" 
-                        Panel1Size="55%"
-                        Panel1MinSize="10%" 
-                        Panel2MinSize="10%"
-                        Style="height: 100%;">
-            <Panel1>
-                <div class="monaco-editor-panel">
-                    <MarkdownToolbar EditorId="@editorId_" />
-                    
-                    @if (IsModified)
-                    {
-                        <div class="modified-badge"></div>
-                    }
-                    @if (!isInitialized_)
-                    {
-                        <div class="loading-overlay">
-                            <FluentProgressRing />
-                        </div>
-                    }
-                    <div id="@editorId_" class="monaco-editor-container"></div>
-                </div>
-            </Panel1>
-            <Panel2>
-                <div class="preview-panel">
-                    <div class="preview-panel-content" id="@previewId_">
-                        @Html
+    @if (showEditor_)
+    {
+        <FluentLayout Style="height: 100%;">
+            <FluentSplitter Orientation="Orientation.Horizontal" 
+                            BarSize="6" 
+                            Panel1Size="55%"
+                            Panel1MinSize="10%" 
+                            Panel2MinSize="10%"
+                            Style="height: 100%;">
+                <Panel1>
+                    <div class="monaco-editor-panel">
+                        <MarkdownToolbar EditorId="@editorId_" />
+
+                        @if (IsModified)
+                        {
+                            <div class="modified-badge"></div>
+                        }
+                        @if (!isInitialized_)
+                        {
+                            <div class="loading-overlay">
+                                <FluentProgressRing />
+                            </div>
+                        }
+                        <div id="@editorId_" class="monaco-editor-container"></div>
                     </div>
-                </div>
-            </Panel2>
-        </FluentSplitter>
-    </FluentLayout>
+                </Panel1>
+                <Panel2>
+                    <div class="preview-panel">
+                        <FluentButton Class="editor-toggle-button"
+                                      Style="position: absolute; top: 8px; right: 24px; z-index: 2; border: 1px solid var(--accent-fill-rest); border-radius: 4px;"
+                                      Appearance="Appearance.Stealth"
+                                      IconOnly="true"
+                                      Title="Hide editor"
+                                      OnClick="ToggleEditor">
+                            <FluentIcon Value="@(new Icons.Regular.Size20.EyeOff())" />
+                        </FluentButton>
+                        <div class="preview-panel-content" id="@previewId_">
+                            @Html
+                        </div>
+                    </div>
+                </Panel2>
+            </FluentSplitter>
+        </FluentLayout>
+    }
+    else
+    {
+        <div class="preview-panel preview-panel--standalone">
+            <FluentButton Class="editor-toggle-button"
+                          Style="position: absolute; top: 8px; right: 24px; z-index: 2; border: 1px solid var(--accent-fill-rest); border-radius: 4px;"
+                          Appearance="Appearance.Stealth"
+                          IconOnly="true"
+                          Title="Edit"
+                          OnClick="ToggleEditor">
+                <FluentIcon Value="@(new Icons.Regular.Size20.Edit())" />
+            </FluentButton>
+            <div class="preview-panel-content" id="@previewId_">
+                @Html
+            </div>
+        </div>
+    }
 </div>

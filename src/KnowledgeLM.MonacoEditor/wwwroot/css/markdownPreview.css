@@ -70,6 +70,65 @@
     content: "YAML";
 }
 
+/* highlight.js token theme - light (mapped onto FluentUI palette with fallbacks) */
+.preview-panel pre code.hljs {
+    color: var(--neutral-foreground-rest, #1f1f1f);
+    background: transparent;
+}
+
+.preview-panel .hljs-comment,
+.preview-panel .hljs-quote {
+    color: #6a737d;
+    font-style: italic;
+}
+
+.preview-panel .hljs-keyword,
+.preview-panel .hljs-selector-tag,
+.preview-panel .hljs-built_in,
+.preview-panel .hljs-name,
+.preview-panel .hljs-tag {
+    color: #0000ff;
+}
+
+.preview-panel .hljs-string,
+.preview-panel .hljs-title,
+.preview-panel .hljs-section,
+.preview-panel .hljs-attribute,
+.preview-panel .hljs-literal,
+.preview-panel .hljs-template-tag,
+.preview-panel .hljs-template-variable,
+.preview-panel .hljs-type,
+.preview-panel .hljs-addition {
+    color: #a31515;
+}
+
+.preview-panel .hljs-number,
+.preview-panel .hljs-symbol,
+.preview-panel .hljs-bullet,
+.preview-panel .hljs-meta,
+.preview-panel .hljs-link {
+    color: #098658;
+}
+
+.preview-panel .hljs-variable,
+.preview-panel .hljs-attr,
+.preview-panel .hljs-selector-class,
+.preview-panel .hljs-selector-id {
+    color: #001080;
+}
+
+.preview-panel .hljs-deletion {
+    color: #b31d28;
+}
+
+.preview-panel .hljs-emphasis {
+    font-style: italic;
+}
+
+.preview-panel .hljs-strong {
+    font-weight: 700;
+}
+
 .preview-panel h1,
 .preview-panel h2,
 .preview-panel h3,
@@ -225,4 +284,53 @@ body[data-theme="dark"] .preview-panel table td {
 
 body[data-theme="dark"] .preview-panel table tr:nth-child(even) {
     background-color: var(--neutral-layer-2);
+}
+
+/* highlight.js token theme - dark */
+body[data-theme="dark"] .preview-panel pre code.hljs {
+    color: var(--neutral-foreground-rest, #d4d4d4);
+}
+
+body[data-theme="dark"] .preview-panel .hljs-comment,
+body[data-theme="dark"] .preview-panel .hljs-quote {
+    color: #6a9955;
+}
+
+body[data-theme="dark"] .preview-panel .hljs-keyword,
+body[data-theme="dark"] .preview-panel .hljs-selector-tag,
+body[data-theme="dark"] .preview-panel .hljs-built_in,
+body[data-theme="dark"] .preview-panel .hljs-name,
+body[data-theme="dark"] .preview-panel .hljs-tag {
+    color: #569cd6;
+}
+
+body[data-theme="dark"] .preview-panel .hljs-string,
+body[data-theme="dark"] .preview-panel .hljs-title,
+body[data-theme="dark"] .preview-panel .hljs-section,
+body[data-theme="dark"] .preview-panel .hljs-attribute,
+body[data-theme="dark"] .preview-panel .hljs-literal,
+body[data-theme="dark"] .preview-panel .hljs-template-tag,
+body[data-theme="dark"] .preview-panel .hljs-template-variable,
+body[data-theme="dark"] .preview-panel .hljs-type,
+body[data-theme="dark"] .preview-panel .hljs-addition {
+    color: #ce9178;
+}
+
+body[data-theme="dark"] .preview-panel .hljs-number,
+body[data-theme="dark"] .preview-panel .hljs-symbol,
+body[data-theme="dark"] .preview-panel .hljs-bullet,
+body[data-theme="dark"] .preview-panel .hljs-meta,
+body[data-theme="dark"] .preview-panel .hljs-link {
+    color: #b5cea8;
+}
+
+body[data-theme="dark"] .preview-panel .hljs-variable,
+body[data-theme="dark"] .preview-panel .hljs-attr,
+body[data-theme="dark"] .preview-panel .hljs-selector-class,
+body[data-theme="dark"] .preview-panel .hljs-selector-id {
+    color: #9cdcfe;
+}
+
+body[data-theme="dark"] .preview-panel .hljs-deletion {
+    color: #f48771;
 }
