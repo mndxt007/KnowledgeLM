@@ -60,23 +60,31 @@ namespace KnowledgeLM.App.Components.Widgets
             {
                 ["playwright"] = new McpStdioServerConfig
                 {
-                    Command = "npx",
+                    Command = OperatingSystem.IsWindows() ? "npx.cmd" : "npx",
                     Args = [
-                        "@playwright/mcp@latest",
-                        "--browser",
-                        "msedge",
+                        "-y",
+                        "@playwright/mcp@next",
+                        "--browser=msedge",
                     ],
                     Tools = new List<string> { "*" },
                 }
             };
 
-            _session = await CopilotService.GetOrCreateSessionAsync(
-                CopilotPaneKey.Notes,
-                AgentStatics.NotesPaneSystemPrompt,
-                mcpServers);
+            try
+            {
+                _session = await CopilotService.GetOrCreateSessionAsync(
+                    CopilotPaneKey.Notes,
+                    AgentStatics.NotesPaneSystemPrompt,
+                    mcpServers);
 
-            _session.StateChanged += OnSessionStateChanged;
-            await InvokeAsync(StateHasChanged);
+                _session.StateChanged += OnSessionStateChanged;
+                await InvokeAsync(StateHasChanged);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Failed to initialize Copilot session with Playwright MCP");
+                Notifications.NotifyError($"Playwright MCP failed to start: {ex.Message}");
+            }
         }
 
         private void OnSessionStateChanged()
