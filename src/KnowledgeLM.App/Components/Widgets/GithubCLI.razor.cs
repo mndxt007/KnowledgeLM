@@ -1,4 +1,4 @@
-using GitHub.Copilot.SDK;
+using GitHub.Copilot;
 using KnowledgeLM.App.Helpers;
 using KnowledgeLM.App.Models;
 using KnowledgeLM.App.Services;
@@ -56,11 +56,10 @@ namespace KnowledgeLM.App.Components.Widgets
 
         private async Task InitializeSession()
         {
-            var mcpServers = new Dictionary<string, object>
+            var mcpServers = new Dictionary<string, McpServerConfig>
             {
-                ["playwright"] = new McpLocalServerConfig
+                ["playwright"] = new McpStdioServerConfig
                 {
-                    Type = "local",
                     Command = "npx",
                     Args = [
                         "@playwright/mcp@latest",

@@ -1,4 +1,4 @@
-using GitHub.Copilot.SDK;
+using GitHub.Copilot;
 using KnowledgeLM.App.Helpers;
 using KnowledgeLM.App.Models;
 using KnowledgeLM.App.Models.AI;

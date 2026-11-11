@@ -35,6 +35,9 @@
 
         <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
         <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+
+        <!-- Use Microsoft NPM proxy for GitHub Copilot CLI package download -->
+        <CopilotNpmRegistryUrl>https://packagefeedproxy.microsoft.io/npm</CopilotNpmRegistryUrl>
     </PropertyGroup>
 
     <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
@@ -66,12 +69,13 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="GitHub.Copilot.SDK" Version="0.1.30" />
+        <PackageReference Include="GitHub.Copilot.SDK" Version="1.0.29" />
+        <PackageReference Include="MessagePack" Version="3.1.12" />
         <PackageReference Include="Markdig" Version="1.1.1" />
         <PackageReference Include="Microsoft.CognitiveServices.Speech" Version="1.48.2" />
-        <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.3" />
-        <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.3" />
-        <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.3" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.14" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.14" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.14" />
         <PackageReference Include="Microsoft.Extensions.AI" Version="10.3.0" />
         <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.3" />
         <PackageReference Include="Microsoft.Extensions.VectorData.Abstractions" Version="10.0.1" />
@@ -85,6 +89,8 @@
         <PackageReference Include="Microsoft.SemanticKernel.Connectors.AzureOpenAI" Version="1.73.0" />
         <PackageReference Include="Microsoft.SemanticKernel.Connectors.SqliteVec" Version="1.73.0-preview" />
         <PackageReference Include="Plugin.Maui.Audio" Version="4.0.0" />
+        <PackageReference Include="Nerdbank.MessagePack" Version="1.4.95" />
+        <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" Version="3.53.3" />
         <!--<PackageReference Include="PSC.Blazor.Components.MarkdownEditor" Version="8.0.8" />-->
     </ItemGroup>
 

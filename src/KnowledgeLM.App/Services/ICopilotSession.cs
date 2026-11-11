@@ -1,4 +1,4 @@
-using GitHub.Copilot.SDK;
+using GitHub.Copilot;
 using KnowledgeLM.App.Models;
 
 namespace KnowledgeLM.App.Services

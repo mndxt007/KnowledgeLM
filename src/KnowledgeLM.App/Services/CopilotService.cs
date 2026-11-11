@@ -1,5 +1,5 @@
 using System.Collections.Concurrent;
-using GitHub.Copilot.SDK;
+using GitHub.Copilot;
 using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
 
@@ -29,7 +29,7 @@ namespace KnowledgeLM.App.Services
         public async Task<ICopilotSession> GetOrCreateSessionAsync(
             CopilotPaneKey key,
             string systemPrompt,
-            Dictionary<string, object>? mcpServers = null)
+            Dictionary<string, McpServerConfig>? mcpServers = null)
         {
             if (_sessions.TryGetValue(key, out var existing))
             {

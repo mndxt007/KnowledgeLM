@@ -1,5 +1,5 @@
 using System.Collections.Concurrent;
-using GitHub.Copilot.SDK;
+using GitHub.Copilot;
 using KnowledgeLM.App.Helpers;
 using KnowledgeLM.App.Models;
 using Microsoft.Extensions.AI;
@@ -18,7 +18,7 @@ namespace KnowledgeLM.App.Services
         private readonly Kernel _kernel;
         private readonly ILogger<CopilotClient> _logger;
         private readonly string _systemPrompt;
-        private readonly Dictionary<string, object>? _mcpServers;
+        private readonly Dictionary<string, McpServerConfig>? _mcpServers;
 
         private CopilotClient? _client;
         private CopilotSession? _session;
@@ -36,7 +36,7 @@ namespace KnowledgeLM.App.Services
             Kernel kernel,
             ILogger<CopilotClient> logger,
             string systemPrompt,
-            Dictionary<string, object>? mcpServers)
+            Dictionary<string, McpServerConfig>? mcpServers)
         {
             _kernel = kernel;
             _logger = logger;
@@ -67,7 +67,7 @@ namespace KnowledgeLM.App.Services
             Status = CopilotSessionStatus.Active;
             RaiseStateChanged();
 
-            _session.On(async evt => await HandleSdkEventAsync(evt));
+            _session.On<SessionEvent>(evt => _ = HandleSdkEventAsync(evt));
         }
 
         private async Task HandleSdkEventAsync(SessionEvent evt)
@@ -188,15 +188,15 @@ namespace KnowledgeLM.App.Services
             catch (Exception ex) { _logger.LogError(ex, "StateChanged subscriber threw"); }
         }
 
-        private IList<AIFunction> GetAIFunctions()
+        private IList<AIFunctionDeclaration> GetAIFunctions()
         {
-            var aiFunctions = new List<AIFunction>();
+            var aiFunctions = new List<AIFunctionDeclaration>();
 
             foreach (var plugin in _kernel.Plugins)
             {
                 foreach (var function in plugin)
                 {
-                    aiFunctions.Add(function);
+                    aiFunctions.Add(function.AsDeclarationOnly());
                 }
             }
 
@@ -205,7 +205,7 @@ namespace KnowledgeLM.App.Services
                 name: "get_notes_folder",
                 description: "Returns the absolute folder path on disk where all resources (courses, sections, notes, images) must be stored. Call this before creating any files or folders.");
 
-            aiFunctions.Add(getNotesFolderTool);
+            aiFunctions.Add(getNotesFolderTool.AsDeclarationOnly());
 
             return aiFunctions;
         }
